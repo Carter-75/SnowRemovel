@@ -27,7 +27,7 @@ const MAX_PLAYERS = 4;
 const STARTING_BALANCE = 1500;
 const BANK_ID = "bank";
 const TAX_ID = "tax";
-const PLAYER_COLORS = ["#ffb347", "#5dd6c1", "#6ea8ff", "#f970b7"] as const;
+const PLAYER_COLORS = ["#fbbf24", "#7dd3fc", "#c084fc", "#f472b6"] as const;
 const STORAGE_KEY = "monopoly-banker-v1";
 const GAIN_COLOR = "#34d399";
 const LOSS_COLOR = "#f87171";
@@ -155,10 +155,17 @@ export default function Home() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [history, setHistory] = useState<TransferRecord[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [recentHighlight, setRecentHighlight] = useState<{
+    source: string | null;
+    target: string | null;
+  }>({ source: null, target: null });
 
   const nameResetTimers = useRef<
     Partial<Record<number, ReturnType<typeof setTimeout>>>
   >({});
+  const recentHighlightTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const activePlayers = players;
 
@@ -252,6 +259,9 @@ export default function Home() {
   useEffect(() => {
     return () => {
       clearAllNameResetTimers();
+      if (recentHighlightTimer.current) {
+        clearTimeout(recentHighlightTimer.current);
+      }
     };
   }, [clearAllNameResetTimers]);
 
@@ -290,9 +300,19 @@ export default function Home() {
     { value: BANK_ID, label: "Bank (unlimited)" },
   ];
 
-  const latestTransfer = history[0] ?? null;
-  const gainHighlightId = latestTransfer?.targetId ?? null;
-  const lossHighlightId = latestTransfer?.sourceId ?? null;
+  const pendingPreviewActive =
+    pendingAmount > 0 && sourceId !== targetId && hasLoaded;
+  const highlightSourceId = pendingPreviewActive
+    ? sourceId
+    : recentHighlight.source;
+  const highlightTargetId = pendingPreviewActive
+    ? targetId
+    : recentHighlight.target;
+  const highlightMode = pendingPreviewActive
+    ? "pending"
+    : recentHighlight.source || recentHighlight.target
+    ? "recent"
+    : null;
 
   const shortAccountLabel = (id: string) => {
     if (id === BANK_ID) {
@@ -350,6 +370,11 @@ export default function Home() {
     setSourceId(BANK_ID);
     setTargetId(playerKey(1));
     setHistory([]);
+    setRecentHighlight({ source: null, target: null });
+    if (recentHighlightTimer.current) {
+      clearTimeout(recentHighlightTimer.current);
+      recentHighlightTimer.current = null;
+    }
     setFeedback("Board reset to starting balances.");
   };
 
@@ -446,6 +471,14 @@ export default function Home() {
       };
       return [record, ...previous].slice(0, 10);
     });
+
+    if (recentHighlightTimer.current) {
+      clearTimeout(recentHighlightTimer.current);
+    }
+    setRecentHighlight({ source: sourceId, target: targetId });
+    recentHighlightTimer.current = setTimeout(() => {
+      setRecentHighlight({ source: null, target: null });
+    }, 2500);
 
     setFeedback(
       `Moved ${formatCurrency(pendingAmount)} from ${describeAccount(
@@ -641,8 +674,8 @@ export default function Home() {
               <div className={styles.balanceGrid}>
                 {activePlayers.map((player) => {
                   const keyId = playerKey(player.id);
-                  const isGain = gainHighlightId === keyId;
-                  const isLoss = lossHighlightId === keyId;
+                  const isGain = highlightTargetId === keyId;
+                  const isLoss = highlightSourceId === keyId;
                   const borderColor = isGain
                     ? GAIN_COLOR
                     : isLoss
@@ -690,15 +723,15 @@ export default function Home() {
                   className={styles.playerCard}
                   style={{
                     borderColor:
-                      gainHighlightId === TAX_ID
+                      highlightTargetId === TAX_ID
                         ? GAIN_COLOR
-                        : lossHighlightId === TAX_ID
+                        : highlightSourceId === TAX_ID
                         ? LOSS_COLOR
                         : undefined,
                     boxShadow:
-                      gainHighlightId === TAX_ID
+                      highlightTargetId === TAX_ID
                         ? `0 18px 45px ${GAIN_COLOR}55`
-                        : lossHighlightId === TAX_ID
+                        : highlightSourceId === TAX_ID
                         ? `0 18px 45px ${LOSS_COLOR}55`
                         : undefined,
                   }}
@@ -715,15 +748,15 @@ export default function Home() {
                   className={styles.playerCard}
                   style={{
                     borderColor:
-                      gainHighlightId === BANK_ID
+                      highlightTargetId === BANK_ID
                         ? GAIN_COLOR
-                        : lossHighlightId === BANK_ID
+                        : highlightSourceId === BANK_ID
                         ? LOSS_COLOR
                         : undefined,
                     boxShadow:
-                      gainHighlightId === BANK_ID
+                      highlightTargetId === BANK_ID
                         ? `0 18px 45px ${GAIN_COLOR}55`
-                        : lossHighlightId === BANK_ID
+                        : highlightSourceId === BANK_ID
                         ? `0 18px 45px ${LOSS_COLOR}55`
                         : undefined,
                   }}
