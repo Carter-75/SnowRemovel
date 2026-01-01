@@ -18,6 +18,7 @@ const STARTING_BALANCE = 1500;
 const BANK_ID = "bank";
 const TAX_ID = "tax";
 const PLAYER_COLORS = ["#ffb347", "#5dd6c1", "#6ea8ff", "#f970b7"] as const;
+const STORAGE_KEY = "monopoly-banker-v1";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -36,9 +37,44 @@ const createPlayer = (id: number): Player => ({
   color: PLAYER_COLORS[(id - 1) % PLAYER_COLORS.length],
 });
 
+const buildDefaultPlayers = (count: number = MAX_PLAYERS) =>
+  Array.from({ length: count }, (_, index) => createPlayer(index + 1));
+
+const sanitizePlayers = (maybePlayers: unknown): Player[] => {
+  if (!Array.isArray(maybePlayers)) {
+    return buildDefaultPlayers(MAX_PLAYERS);
+  }
+
+  const trimmed = maybePlayers.slice(0, MAX_PLAYERS);
+  const normalizedLength = Math.min(
+    Math.max(trimmed.length, MIN_PLAYERS),
+    MAX_PLAYERS
+  );
+
+  const sanitized = Array.from({ length: normalizedLength }, (_, index) => {
+    const source = trimmed[index] ?? {};
+    const id = index + 1;
+    const providedName =
+      typeof source.name === "string" ? source.name.trim() : "";
+    const balanceRaw = Number(source.balance);
+    const balance = Number.isFinite(balanceRaw)
+      ? Math.max(0, Math.round(balanceRaw))
+      : STARTING_BALANCE;
+
+    return {
+      id,
+      name: providedName === "" ? `Player ${id}` : providedName,
+      balance,
+      color: PLAYER_COLORS[index % PLAYER_COLORS.length],
+    };
+  });
+
+  return sanitized;
+};
+
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>(() =>
-    Array.from({ length: MAX_PLAYERS }, (_, index) => createPlayer(index + 1))
+    buildDefaultPlayers(MAX_PLAYERS)
   );
   const [taxBalance, setTaxBalance] = useState(0);
   const [pendingAmount, setPendingAmount] = useState(0);
@@ -101,6 +137,40 @@ export default function Home() {
   };
 
   const playerCount = activePlayers.length;
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      const nextPlayers = sanitizePlayers(parsed?.players);
+      const parsedTax = Number(parsed?.taxBalance);
+      const nextTax = Number.isFinite(parsedTax)
+        ? Math.max(0, Math.round(parsedTax))
+        : 0;
+      setPlayers(nextPlayers);
+      setTaxBalance(nextTax);
+    } catch (error) {
+      console.warn("Failed to load Monopoly banker state", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    try {
+      const payload = JSON.stringify({ players, taxBalance });
+      window.localStorage.setItem(STORAGE_KEY, payload);
+    } catch (error) {
+      console.warn("Failed to persist Monopoly banker state", error);
+    }
+  }, [players, taxBalance]);
 
   useEffect(() => {
     return () => {
@@ -176,6 +246,18 @@ export default function Home() {
   const adjustPendingAmount = (delta: number) => {
     setPendingAmount((previous) => Math.max(0, previous + delta));
     setFeedback(null);
+  };
+
+  const handleResetBoard = () => {
+    clearAllNameResetTimers();
+    const freshPlayers = buildDefaultPlayers(playerCount);
+    setPlayers(freshPlayers);
+    setTaxBalance(0);
+    setPendingAmount(0);
+    setCustomAmount("");
+    setSourceId(BANK_ID);
+    setTargetId(playerKey(1));
+    setFeedback("Board reset to starting balances.");
   };
 
   const handleSwapAccounts = () => {
@@ -298,6 +380,15 @@ export default function Home() {
                 Bank is unlimited, tax pile starts at {formatCurrency(0)}, each
                 player starts at {formatCurrency(STARTING_BALANCE)}.
               </p>
+              <div className={styles.cardActions}>
+                <button
+                  type="button"
+                  className={styles.resetBoardButton}
+                  onClick={handleResetBoard}
+                >
+                  Reset Board
+                </button>
+              </div>
             </div>
 
             <div className={styles.card}>
