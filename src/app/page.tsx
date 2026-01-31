@@ -26,7 +26,7 @@ const SERVICES = [
 const PRICING = [
     {
         name: "Short job",
-        price: "$15",
+        price: "≈ $15+",
         details: ["Smaller driveway", "Fits about 2 cars", "Shovel-based clearing"],
     },
     {
@@ -229,9 +229,14 @@ export default function Home() {
             return;
         }
 
+        if (container.clientWidth === 0) {
+            return;
+        }
+
         const engine = Matter.Engine.create();
+        engine.gravity.y = 0.35;
         const initialWidth = container.clientWidth;
-        const initialHeight = container.clientHeight || 240;
+        const initialHeight = Math.max(container.clientHeight, 220);
         const render = Matter.Render.create({
             element: container,
             engine,
@@ -247,49 +252,84 @@ export default function Home() {
         let currentWidth = initialWidth;
         let currentHeight = initialHeight;
 
-        const ground = Matter.Bodies.rectangle(initialWidth / 2, initialHeight - 5, initialWidth, 10, {
+        const ground = Matter.Bodies.rectangle(initialWidth / 2, initialHeight - 1, initialWidth, 6, {
             isStatic: true,
             render: { fillStyle: "rgba(255,255,255,0.0)" },
         });
 
         Matter.World.add(engine.world, [ground]);
 
+        const MAX_FLAKES = 220;
         const spawnSnow = () => {
-            const radius = 3 + Math.random() * 3;
+            if (engine.world.bodies.length > MAX_FLAKES) {
+                return;
+            }
+            const radius = 1.8 + Math.random() * 2.8;
             const snowflake = Matter.Bodies.circle(
             Math.random() * currentWidth,
                 -20,
                 radius,
                 {
-                    frictionAir: 0.02,
-                    restitution: 0.2,
+                    frictionAir: 0.04 + Math.random() * 0.03,
+                    restitution: 0.0,
+                    friction: 0.2,
                     render: { fillStyle: "rgba(255,255,255,0.9)" },
                 }
             );
+            (snowflake as Matter.Body & { plugin?: { spawnedAt?: number } }).plugin = {
+                spawnedAt: Date.now(),
+            };
+            Matter.Body.setVelocity(snowflake, {
+                x: (Math.random() - 0.5) * 0.6,
+                y: 0.2 + Math.random() * 0.4,
+            });
             Matter.World.add(engine.world, snowflake);
         };
 
-        const snowInterval = window.setInterval(spawnSnow, 140);
+        const snowInterval = window.setInterval(spawnSnow, 180);
+        const windInterval = window.setInterval(() => {
+            engine.world.bodies.forEach((body) => {
+                if (body.isStatic) {
+                    return;
+                }
+                const wind = (Math.random() - 0.5) * 0.0006;
+                Matter.Body.applyForce(body, body.position, { x: wind, y: 0 });
+            });
+        }, 600);
+        const cleanupInterval = window.setInterval(() => {
+            const bodies = engine.world.bodies;
+            bodies.forEach((body) => {
+                const spawnedAt = (body as Matter.Body & { plugin?: { spawnedAt?: number } }).plugin?.spawnedAt;
+                if (spawnedAt && Date.now() - spawnedAt < 30000) {
+                    return;
+                }
+                if (!body.isStatic && body.position.y > currentHeight + 120) {
+                    Matter.World.remove(engine.world, body);
+                }
+            });
+        }, 1500);
 
         Matter.Engine.run(engine);
         Matter.Render.run(render);
 
         const handleResize = () => {
             const width = container.clientWidth;
-            const height = container.clientHeight || 240;
+            const height = Math.max(container.clientHeight, 220);
             currentWidth = width;
             currentHeight = height;
             render.canvas.width = width;
             render.canvas.height = height;
             render.options.width = width;
             render.options.height = height;
-            Matter.Body.setPosition(ground, { x: width / 2, y: height - 5 });
+            Matter.Body.setPosition(ground, { x: width / 2, y: height - 1 });
         };
 
         window.addEventListener("resize", handleResize);
 
         return () => {
             window.clearInterval(snowInterval);
+            window.clearInterval(windInterval);
+            window.clearInterval(cleanupInterval);
             window.removeEventListener("resize", handleResize);
             Matter.Render.stop(render);
             Matter.Engine.clear(engine);
