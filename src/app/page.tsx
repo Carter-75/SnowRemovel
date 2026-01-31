@@ -167,8 +167,16 @@ export default function Home() {
         if (!requestedAt || Number.isNaN(requestedAt.getTime())) {
             return false;
         }
-        const diffMs = requestedAt.getTime() - Date.now();
-        return diffMs > 0 && diffMs <= 3 * 24 * 60 * 60 * 1000;
+        const now = new Date();
+        if (requestedAt.getTime() <= now.getTime()) {
+            return false;
+        }
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        const requestedStart = new Date(requestedAt);
+        requestedStart.setHours(0, 0, 0, 0);
+        const diffDays = Math.ceil((requestedStart.getTime() - todayStart.getTime()) / (24 * 60 * 60 * 1000));
+        return diffDays <= 3;
     };
 
     const handleEstimate = async () => {

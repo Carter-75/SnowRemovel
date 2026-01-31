@@ -61,8 +61,17 @@ const resolveUrgentFromTimeframe = (timeframe: string, timezoneOffsetMinutes?: n
   const utcMillis =
     Date.UTC(parts.year, parts.month - 1, parts.day, parts.hours, parts.minutes, 0, 0) +
     offsetMinutes * 60 * 1000;
-  const diffMs = utcMillis - Date.now();
-  return diffMs > 0 && diffMs <= 3 * 24 * 60 * 60 * 1000;
+  if (utcMillis <= Date.now()) {
+    return false;
+  }
+  const localNowMs = Date.now() - offsetMinutes * 60 * 1000;
+  const localReqMs = utcMillis - offsetMinutes * 60 * 1000;
+  const nowLocal = new Date(localNowMs);
+  const reqLocal = new Date(localReqMs);
+  const nowDayStartUtc = Date.UTC(nowLocal.getUTCFullYear(), nowLocal.getUTCMonth(), nowLocal.getUTCDate());
+  const reqDayStartUtc = Date.UTC(reqLocal.getUTCFullYear(), reqLocal.getUTCMonth(), reqLocal.getUTCDate());
+  const diffDays = Math.ceil((reqDayStartUtc - nowDayStartUtc) / (24 * 60 * 60 * 1000));
+  return diffDays <= 3;
 };
 
 export async function POST(request: Request) {
