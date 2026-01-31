@@ -24,6 +24,81 @@ const SERVICE_AREA_SQRT_FACTOR = envNumber(process.env.SNOW_SERVICE_AREA_SQRT_FA
 
 const metersToSquareFeet = (sqMeters: number) => sqMeters * 10.7639;
 
+const fetchOrsRouteSummary = async (origin: { lat: number; lon: number }, destination: { lat: number; lon: number }) => {
+  if (!ORS_API_KEY) {
+    return { summary: null, status: "Missing ORS_API_KEY" };
+  }
+
+  const orsUrl = new URL("https://api.openrouteservice.org/v2/directions/driving-car");
+  orsUrl.searchParams.set("start", `${origin.lon},${origin.lat}`);
+  orsUrl.searchParams.set("end", `${destination.lon},${destination.lat}`);
+
+  const orsResponse = await fetch(orsUrl.toString(), {
+    headers: {
+      Authorization: ORS_API_KEY,
+      Accept: "application/json",
+      "User-Agent": "CarterSnowRemoval/1.0 (contact: cartermoyer75@gmail.com)",
+    },
+    cache: "no-store",
+  });
+
+  if (!orsResponse.ok) {
+    let errorBody = "";
+    try {
+      errorBody = (await orsResponse.text()).trim();
+    } catch {
+      // Ignore response parsing errors.
+    }
+    return {
+      summary: null,
+      status: `ORS ${orsResponse.status} ${orsResponse.statusText}${errorBody ? `: ${errorBody}` : ""}`,
+    };
+  }
+
+  const orsData = (await orsResponse.json()) as {
+    features?: Array<{ properties?: { summary?: { distance?: number; duration?: number } } }>;
+  };
+  const summary = orsData.features?.[0]?.properties?.summary ?? null;
+  return { summary, status: summary ? "OK" : "ORS missing summary" };
+};
+
+const fetchOsrmRouteSummary = async (origin: { lat: number; lon: number }, destination: { lat: number; lon: number }) => {
+  const osrmUrl = new URL(
+    `https://router.project-osrm.org/route/v1/driving/${origin.lon},${origin.lat};${destination.lon},${destination.lat}`
+  );
+  osrmUrl.searchParams.set("overview", "false");
+  osrmUrl.searchParams.set("alternatives", "false");
+
+  const osrmResponse = await fetch(osrmUrl.toString(), {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "CarterSnowRemoval/1.0 (contact: cartermoyer75@gmail.com)",
+    },
+    cache: "no-store",
+  });
+
+  if (!osrmResponse.ok) {
+    let errorBody = "";
+    try {
+      errorBody = (await osrmResponse.text()).trim();
+    } catch {
+      // Ignore response parsing errors.
+    }
+    return {
+      summary: null,
+      status: `OSRM ${osrmResponse.status} ${osrmResponse.statusText}${errorBody ? `: ${errorBody}` : ""}`,
+    };
+  }
+
+  const osrmData = (await osrmResponse.json()) as {
+    routes?: Array<{ distance?: number; duration?: number }>;
+    code?: string;
+  };
+  const route = osrmData.routes?.[0];
+  const summary = route?.distance && route?.duration ? { distance: route.distance, duration: route.duration } : null;
+  return { summary, status: summary ? "OK" : `OSRM response code ${osrmData.code ?? "unknown"}` };
+};
+
 const ringArea = (ring: number[][]) => {
   let sum = 0;
   for (let i = 0; i < ring.length - 1; i += 1) {
@@ -140,65 +215,45 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
   let roundTripMinutes = 0;
   let upfrontFee = 0;
   let driveFeeStatus: string | null = null;
-  if (ORS_API_KEY) {
-    const origin = await geocodeAddress(DRIVE_ORIGIN_ADDRESS);
-    if (origin) {
-      const orsUrl = new URL("https://api.openrouteservice.org/v2/directions/driving-car");
-      orsUrl.searchParams.set("start", `${origin.lon},${origin.lat}`);
-      orsUrl.searchParams.set("end", `${destination.lon},${destination.lat}`);
+  const origin = await geocodeAddress(DRIVE_ORIGIN_ADDRESS);
+  if (origin) {
+    let summary = null as null | { distance?: number; duration?: number };
+    let status = "";
 
-      const orsResponse = await fetch(orsUrl.toString(), {
-        headers: {
-          Authorization: ORS_API_KEY,
-          Accept: "application/json",
-          "User-Agent": "CarterSnowRemoval/1.0 (contact: cartermoyer75@gmail.com)",
-        },
-        cache: "no-store",
-      });
+    const orsResult = await fetchOrsRouteSummary(origin, destination);
+    summary = orsResult.summary;
+    status = orsResult.status;
 
-      if (orsResponse.ok) {
-        const orsData = (await orsResponse.json()) as {
-          features?: Array<{ properties?: { summary?: { distance?: number; duration?: number } } }>;
-        };
-        const summary = orsData.features?.[0]?.properties?.summary;
-        if (summary?.distance && summary?.duration) {
-          driveMiles = summary.distance / 1609.34;
-          driveMinutes = summary.duration / 60;
-          roundTripMiles = driveMiles * 2;
-          roundTripMinutes = driveMinutes * 2;
-          if (driveMinutes > DRIVE_FREE_MINUTES) {
-            const gasPerMile = DRIVE_GAS_PRICE / DRIVE_MPG;
-            const perMileCost = Math.max(DRIVE_PER_MILE_RATE, gasPerMile + DRIVE_WEAR_RATE);
-            const oneWayCost = driveMiles * perMileCost;
-            const roundTripHours = (summary.duration * 2) / 3600;
-            const timePay = roundTripHours * DRIVE_HOURLY_RATE;
-            driveFee = Math.max(oneWayCost * 1.5, timePay);
-          }
-          if (driveMinutes >= DRIVE_FULL_UPFRONT_MINUTES) {
-            upfrontFee = (price + driveFee) / 2;
-          } else if (driveMinutes >= DRIVE_HALF_UPFRONT_MINUTES) {
-            upfrontFee = driveFee / 2;
-          }
-        } else {
-          driveFeeStatus = "Routing data missing; travel fee not applied.";
-        }
-      } else {
-        let statusDetail = `Routing request failed (${orsResponse.status} ${orsResponse.statusText}).`;
-        try {
-          const errorText = await orsResponse.text();
-          if (errorText.trim()) {
-            statusDetail = `${statusDetail} ${errorText.trim()}`;
-          }
-        } catch {
-          // Ignore response parsing errors.
-        }
-        driveFeeStatus = `${statusDetail} Travel fee not applied.`;
+    if (!summary) {
+      const osrmResult = await fetchOsrmRouteSummary(origin, destination);
+      summary = osrmResult.summary;
+      status = osrmResult.status === "OK" ? "OSRM fallback used" : `ORS failed (${status}); ${osrmResult.status}`;
+    }
+
+    if (summary?.distance && summary?.duration) {
+      driveMiles = summary.distance / 1609.34;
+      driveMinutes = summary.duration / 60;
+      roundTripMiles = driveMiles * 2;
+      roundTripMinutes = driveMinutes * 2;
+      if (driveMinutes > DRIVE_FREE_MINUTES) {
+        const gasPerMile = DRIVE_GAS_PRICE / DRIVE_MPG;
+        const perMileCost = Math.max(DRIVE_PER_MILE_RATE, gasPerMile + DRIVE_WEAR_RATE);
+        const oneWayCost = driveMiles * perMileCost;
+        const roundTripHours = (summary.duration * 2) / 3600;
+        const timePay = roundTripHours * DRIVE_HOURLY_RATE;
+        driveFee = Math.max(oneWayCost * 1.5, timePay);
       }
+      if (driveMinutes >= DRIVE_FULL_UPFRONT_MINUTES) {
+        upfrontFee = (price + driveFee) / 2;
+      } else if (driveMinutes >= DRIVE_HALF_UPFRONT_MINUTES) {
+        upfrontFee = driveFee / 2;
+      }
+      driveFeeStatus = status !== "OK" ? status : null;
     } else {
-      driveFeeStatus = "Origin address could not be geocoded; travel fee not applied.";
+      driveFeeStatus = `Routing data missing (${status}); travel fee not applied.`;
     }
   } else {
-    driveFeeStatus = "Missing ORS_API_KEY; travel fee not applied.";
+    driveFeeStatus = "Origin address could not be geocoded; travel fee not applied.";
   }
 
   return {
