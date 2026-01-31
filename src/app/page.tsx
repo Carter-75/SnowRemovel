@@ -557,6 +557,21 @@ export default function Home() {
                                         Final price ${totalWithDrive?.toFixed(2)}
                                     </div>
                                 ) : null}
+                                <details>
+                                    <summary>Pricing breakdown</summary>
+                                    <div>
+                                        Service area: {estimate.sqft.toFixed(1)} sq ft • Rate ${estimate.rate.toFixed(4)}/sq ft
+                                    </div>
+                                    <div>
+                                        Base service: ${estimate.basePrice.toFixed(2)}
+                                    </div>
+                                    <div>
+                                        Convenience upcharge: ${estimate.upchargeAmount.toFixed(2)}
+                                    </div>
+                                    <div>
+                                        Travel fee: ${estimate.driveFee.toFixed(2)}
+                                    </div>
+                                </details>
                             </div>
                         ) : null}
                         <div className={styles.contactGrid}>
