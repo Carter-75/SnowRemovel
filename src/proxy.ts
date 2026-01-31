@@ -23,15 +23,23 @@ const createNonce = () => {
 const buildCsp = (nonce: string) => {
   const frameAncestors = allowedFrameAncestors.join(" ");
   const isProduction = process.env.NODE_ENV === "production";
+  const scriptSrc = [
+    "'self'",
+    `'nonce-${nonce}'`,
+    "https://cdnjs.cloudflare.com",
+  ];
+  if (!isProduction) {
+    scriptSrc.push("https://vercel.live");
+  }
   return [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
     `frame-ancestors ${frameAncestors}`,
-    `script-src 'self' 'nonce-${nonce}' https://cdnjs.cloudflare.com`,
+    `script-src ${scriptSrc.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
-    "font-src 'self' data: https://cdnjs.cloudflare.com",
+    "font-src 'self' data: https://cdnjs.cloudflare.com https://r2cdn.perplexity.ai",
     "connect-src 'self'",
     "form-action 'self' https://checkout.stripe.com",
     isProduction ? "upgrade-insecure-requests" : "",

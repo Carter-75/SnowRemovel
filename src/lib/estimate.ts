@@ -150,6 +150,8 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
       const orsResponse = await fetch(orsUrl.toString(), {
         headers: {
           Authorization: ORS_API_KEY,
+          Accept: "application/json",
+          "User-Agent": "CarterSnowRemoval/1.0 (contact: cartermoyer75@gmail.com)",
         },
         cache: "no-store",
       });
@@ -181,7 +183,16 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
           driveFeeStatus = "Routing data missing; travel fee not applied.";
         }
       } else {
-        driveFeeStatus = "Routing request failed; travel fee not applied.";
+        let statusDetail = `Routing request failed (${orsResponse.status} ${orsResponse.statusText}).`;
+        try {
+          const errorText = await orsResponse.text();
+          if (errorText.trim()) {
+            statusDetail = `${statusDetail} ${errorText.trim()}`;
+          }
+        } catch {
+          // Ignore response parsing errors.
+        }
+        driveFeeStatus = `${statusDetail} Travel fee not applied.`;
       }
     } else {
       driveFeeStatus = "Origin address could not be geocoded; travel fee not applied.";

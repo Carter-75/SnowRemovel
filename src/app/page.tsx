@@ -356,7 +356,8 @@ export default function Home() {
             });
         }, 1500);
 
-        Matter.Engine.run(engine);
+        const runner = Matter.Runner.create();
+        Matter.Runner.run(runner, engine);
         Matter.Render.run(render);
 
         const handleResize = () => {
@@ -379,6 +380,7 @@ export default function Home() {
             window.clearInterval(cleanupInterval);
             window.removeEventListener("resize", handleResize);
             Matter.Render.stop(render);
+            Matter.Runner.stop(runner);
             Matter.Engine.clear(engine);
             if (render.canvas.parentNode) {
                 render.canvas.parentNode.removeChild(render.canvas);
