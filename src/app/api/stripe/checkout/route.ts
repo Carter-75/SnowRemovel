@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { computeEstimate } from "@/lib/estimate";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
@@ -19,6 +20,15 @@ const calculateDiscountPercent = (timestamp: number) => {
 };
 
 export async function POST(request: Request) {
+  const clientIp = getClientIp(request);
+  const rateLimit = checkRateLimit(`checkout:${clientIp}`, 10, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again shortly." },
+      { status: 429, headers: { "Retry-After": Math.ceil(rateLimit.retryAfterMs / 1000).toString() } }
+    );
+  }
+
   if (!STRIPE_SECRET_KEY || !BASE_URL) {
     return NextResponse.json({ error: "Stripe is not configured." }, { status: 500 });
   }

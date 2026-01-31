@@ -80,9 +80,11 @@ export async function POST(request: Request) {
     }
 
     const session = event.data.object as Stripe.Checkout.Session;
+    if (session.payment_status && session.payment_status !== "paid") {
+      return NextResponse.json({ received: true });
+    }
     const paymentId =
       (typeof session.payment_intent === "string" && session.payment_intent) || session.id;
-    const customerEmail = session.customer_email ?? null;
     const metadata = session.metadata ?? {};
 
     const gross = Number(((session.amount_total ?? 0) / 100).toFixed(2));
@@ -95,38 +97,44 @@ export async function POST(request: Request) {
       basePrice > 0 ? basePrice : Math.max(0, gross - driveFee - urgencyFee + discountAmount);
 
     const previousState = await loadFinancialState();
-    if (previousState.processedEventIds.includes(event.id)) {
+    const existingStatus = previousState.eventStatus[event.id];
+    if (existingStatus?.emailSent) {
       return NextResponse.json({ received: true });
     }
 
     const previousGross = previousState.ytdGross ?? 0;
+    const ytdAlreadyUpdated = previousState.processedEventIds.includes(event.id);
+    const grossBase = ytdAlreadyUpdated ? previousGross : Number((previousGross + gross).toFixed(2));
     const incremental = calculateIncrementalEstimate(previousGross, gross);
-    const newGross = Number((previousGross + gross).toFixed(2));
-    const ytdSummary = calculateYtdTaxSummary(newGross);
+    const ytdSummary = calculateYtdTaxSummary(grossBase);
     const marginalRatePercent = Math.round(ytdSummary.federalMarginalRate * 100);
 
-    const updatedState = {
-      ...previousState,
-      ytdGross: newGross,
-      updatedAt: new Date().toISOString(),
-      processedEventIds: [...previousState.processedEventIds, event.id],
-      transactions: [
-        ...previousState.transactions,
-        {
-          id: paymentId,
-          createdAt: new Date().toISOString(),
-          gross,
-          basePrice: resolvedBasePrice,
-          driveFee,
-          urgencyFee,
-          discountAmount,
-          customerEmail,
-          address: metadata.address ?? null,
+    if (!ytdAlreadyUpdated) {
+      const updatedState = {
+        ...previousState,
+        ytdGross: grossBase,
+        updatedAt: new Date().toISOString(),
+        processedEventIds: [...previousState.processedEventIds, event.id],
+        transactions: [
+          ...previousState.transactions,
+          {
+            id: paymentId,
+            createdAt: new Date().toISOString(),
+            gross,
+            basePrice: resolvedBasePrice,
+            driveFee,
+            urgencyFee,
+            discountAmount,
+          },
+        ],
+        eventStatus: {
+          ...previousState.eventStatus,
+          [event.id]: { emailSent: false, updatedAt: new Date().toISOString() },
         },
-      ],
-    };
+      };
 
-    await persistFinancialState(updatedState);
+      await persistFinancialState(updatedState);
+    }
 
     const discountLine = discountAmount > 0
       ? `<p><strong>Discount applied:</strong> ${formatCurrency(discountAmount)}</p>`
@@ -176,7 +184,7 @@ export async function POST(request: Request) {
       html: ownerHtml,
     });
 
-    if (customerEmail) {
+    if (session.customer_email) {
       const termsPath = path.join(process.cwd(), "public", "legal", "terms.pdf");
       const cancelPath = path.join(process.cwd(), "public", "legal", "right-to-cancel.pdf");
       const [termsPdf, cancelPdf] = await Promise.all([
@@ -199,7 +207,7 @@ export async function POST(request: Request) {
       `;
 
       await sendResendEmail({
-        to: [customerEmail],
+        to: [session.customer_email],
         subject: "Payment Confirmation - Snow Removal",
         html: customerHtml,
         attachments: [
@@ -216,6 +224,17 @@ export async function POST(request: Request) {
             content: cancelPdf.toString("base64"),
           },
         ],
+      });
+    }
+
+    const latestState = await loadFinancialState();
+    if (!latestState.eventStatus[event.id]?.emailSent) {
+      await persistFinancialState({
+        ...latestState,
+        eventStatus: {
+          ...latestState.eventStatus,
+          [event.id]: { emailSent: true, updatedAt: new Date().toISOString() },
+        },
       });
     }
   }

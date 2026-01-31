@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 
 import { computeEstimate } from "@/lib/estimate";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+
+const PARCEL_LAYER_URL = process.env.PARCEL_LAYER_URL ?? "";
 
 export async function POST(request: Request) {
+  const clientIp = getClientIp(request);
+  const rateLimit = checkRateLimit(`estimate:${clientIp}`, 30, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again shortly." },
+      { status: 429, headers: { "Retry-After": Math.ceil(rateLimit.retryAfterMs / 1000).toString() } }
+    );
+  }
+
   if (!PARCEL_LAYER_URL) {
     return NextResponse.json(
       { error: "Parcel data endpoint is not configured." },

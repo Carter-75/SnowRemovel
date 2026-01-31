@@ -15,7 +15,6 @@ export function middleware(request: NextRequest) {
     frameAncestors.push("https://*.vercel.app");
 
     response.headers.set("Content-Security-Policy", `frame-ancestors ${frameAncestors.join(" ")};`);
-    response.headers.set("X-Frame-Options", "ALLOWALL");
     response.headers.set("Referrer-Policy", "origin-when-cross-origin");
     response.headers.set("X-Content-Type-Options", "nosniff");
 

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import path from "path";
 import { readFile } from "fs/promises";
 
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "";
 const RESEND_TO = process.env.RESEND_TO ?? "";
@@ -21,6 +23,15 @@ type EstimatePayload = {
 };
 
 export async function POST(request: Request) {
+  const clientIp = getClientIp(request);
+  const rateLimit = checkRateLimit(`quote:${clientIp}`, 20, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again shortly." },
+      { status: 429, headers: { "Retry-After": Math.ceil(rateLimit.retryAfterMs / 1000).toString() } }
+    );
+  }
+
   if (!RESEND_API_KEY || !RESEND_FROM || !RESEND_TO) {
     return NextResponse.json({ error: "Email service is not configured." }, { status: 500 });
   }
