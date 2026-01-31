@@ -158,11 +158,12 @@ export default function Home() {
 
     const buildTimeframe = () => requestDateTime;
 
-    const isUrgentRequest = () => {
-        if (!requestDateTime) {
+    const isUrgentRequest = (value?: string) => {
+        const dateValue = value ?? requestDateTime;
+        if (!dateValue) {
             return false;
         }
-        const requestedAt = parseLocalDateTime(requestDateTime);
+        const requestedAt = parseLocalDateTime(dateValue);
         if (!requestedAt || Number.isNaN(requestedAt.getTime())) {
             return false;
         }
@@ -257,8 +258,9 @@ export default function Home() {
         return Number((base + estimate.driveFee).toFixed(2));
     }, [estimate, discountedPrice]);
 
+    const urgentService = useMemo(() => isUrgentRequest(requestDateTime), [requestDateTime]);
+
     const canSubmit = useMemo(() => {
-        const urgentService = isUrgentRequest();
         return (
             Boolean(requestName.trim()) &&
             Boolean(buildFullAddress()) &&
@@ -267,7 +269,7 @@ export default function Home() {
             downloadedTerms &&
             (!urgentService || emergencyWaiver)
         );
-    }, [requestName, streetAddress, unitAddress, cityAddress, stateAddress, zipAddress, requestDateTime, agreedToTerms, downloadedTerms, emergencyWaiver]);
+    }, [requestName, streetAddress, unitAddress, cityAddress, stateAddress, zipAddress, requestDateTime, agreedToTerms, downloadedTerms, emergencyWaiver, urgentService]);
 
 
     const handlePayment = async () => {
@@ -287,6 +289,7 @@ export default function Home() {
                     address: buildFullAddress(),
                     timeframe: buildTimeframe(),
                     urgentService,
+                    timezoneOffsetMinutes: new Date().getTimezoneOffset(),
                     estimateTimestamp: estimate.timestamp,
                 }),
             });
@@ -754,7 +757,7 @@ export default function Home() {
                                                 setRequestDateTime(nextValue);
                                             }}
                                         />
-                                        {requestDateTime && isUrgentRequest() ? (
+                                        {requestDateTime && urgentService ? (
                                             <div className={styles.urgentNote}>
                                                 Rush service detected (within 3 days). A 10% convenience upcharge will apply.
                                             </div>

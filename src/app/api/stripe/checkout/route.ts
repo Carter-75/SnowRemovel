@@ -33,6 +33,37 @@ const calculateDiscountPercent = (timestamp: number) => {
   return Math.max(0, 10 - ((elapsedSeconds - 300) / 300) * 10);
 };
 
+const parseLocalDateTimeParts = (value: string) => {
+  const [datePart, timePart] = value.split("T");
+  if (!datePart || !timePart) {
+    return null;
+  }
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hours, minutes] = timePart.split(":").map(Number);
+  if (!year || !month || !day || Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+  return { year, month, day, hours, minutes };
+};
+
+const resolveUrgentFromTimeframe = (timeframe: string, timezoneOffsetMinutes?: number) => {
+  if (!timeframe) {
+    return false;
+  }
+  const parts = parseLocalDateTimeParts(timeframe);
+  if (!parts) {
+    return false;
+  }
+  const offsetMinutes = Number.isFinite(timezoneOffsetMinutes)
+    ? Math.max(-840, Math.min(840, timezoneOffsetMinutes))
+    : 0;
+  const utcMillis =
+    Date.UTC(parts.year, parts.month - 1, parts.day, parts.hours, parts.minutes, 0, 0) +
+    offsetMinutes * 60 * 1000;
+  const diffMs = utcMillis - Date.now();
+  return diffMs > 0 && diffMs <= 3 * 24 * 60 * 60 * 1000;
+};
+
 export async function POST(request: Request) {
   const clientIp = getClientIp(request);
   const rateLimit = await checkRateLimit(`checkout:${clientIp}`, 10, 60_000);
@@ -53,6 +84,7 @@ export async function POST(request: Request) {
     address?: string;
     timeframe?: string;
     urgentService?: boolean;
+    timezoneOffsetMinutes?: number;
     estimateTimestamp?: number;
   };
 
@@ -60,12 +92,17 @@ export async function POST(request: Request) {
   const address = normalizeText(body.address, 200);
   const timeframe = normalizeText(body.timeframe, 200);
   const email = normalizeText(body.email, 254);
+  const timezoneOffsetMinutes =
+    typeof body.timezoneOffsetMinutes === "number" ? body.timezoneOffsetMinutes : undefined;
 
   if (!name || !address) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
   }
 
-  const estimate = await computeEstimate(address, Boolean(body.urgentService));
+  const urgentService =
+    resolveUrgentFromTimeframe(timeframe, timezoneOffsetMinutes) || Boolean(body.urgentService);
+
+  const estimate = await computeEstimate(address, urgentService);
   if (!estimate) {
     return NextResponse.json({ error: "Unable to compute estimate." }, { status: 400 });
   }
