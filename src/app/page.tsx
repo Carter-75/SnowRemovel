@@ -163,7 +163,7 @@ export default function Home() {
             return false;
         }
         const requestedAt = parseLocalDateTime(requestDateTime);
-        if (Number.isNaN(requestedAt.getTime())) {
+        if (!requestedAt || Number.isNaN(requestedAt.getTime())) {
             return false;
         }
         const diffMs = requestedAt.getTime() - Date.now();
