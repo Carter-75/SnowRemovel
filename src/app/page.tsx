@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import Image from "next/image";
+import anime from "animejs";
+import * as Matter from "matter-js";
 
 import styles from "./page.module.css";
 
@@ -82,6 +86,9 @@ export default function Home() {
     const [requestAddress, setRequestAddress] = useState("");
     const [requestTimeframe, setRequestTimeframe] = useState("");
     const [requestDetails, setRequestDetails] = useState("");
+    const heroCardRef = useRef<HTMLDivElement | null>(null);
+    const heroImageRef = useRef<HTMLDivElement | null>(null);
+    const snowSceneRef = useRef<HTMLDivElement | null>(null);
 
     const handleEstimate = async () => {
         if (!address.trim()) {
@@ -186,11 +193,121 @@ export default function Home() {
         discountPercent,
         discountedPrice,
     ]);
+
+    useEffect(() => {
+        if (!heroCardRef.current || !heroImageRef.current) {
+            return;
+        }
+        anime({
+            targets: heroCardRef.current,
+            translateY: [16, 0],
+            opacity: [0, 1],
+            duration: 900,
+            easing: "easeOutQuad",
+        });
+        anime({
+            targets: heroImageRef.current,
+            translateY: [12, 0],
+            opacity: [0, 1],
+            duration: 1200,
+            easing: "easeOutQuad",
+            delay: 120,
+        });
+        anime({
+            targets: heroImageRef.current,
+            translateY: [0, -8],
+            direction: "alternate",
+            easing: "easeInOutSine",
+            duration: 2200,
+            loop: true,
+        });
+    }, []);
+
+    useEffect(() => {
+        const container = snowSceneRef.current;
+        if (!container) {
+            return;
+        }
+
+        const engine = Matter.Engine.create();
+        const render = Matter.Render.create({
+            element: container,
+            engine,
+            options: {
+                width: container.clientWidth,
+                height: 240,
+                background: "transparent",
+                wireframes: false,
+                pixelRatio: window.devicePixelRatio || 1,
+            },
+        });
+
+        const ground = Matter.Bodies.rectangle(render.options.width / 2, 235, render.options.width, 10, {
+            isStatic: true,
+            render: { fillStyle: "rgba(255,255,255,0.0)" },
+        });
+
+        Matter.World.add(engine.world, [ground]);
+
+        const spawnSnow = () => {
+            const radius = 3 + Math.random() * 3;
+            const snowflake = Matter.Bodies.circle(
+                Math.random() * render.options.width,
+                -20,
+                radius,
+                {
+                    frictionAir: 0.02,
+                    restitution: 0.2,
+                    render: { fillStyle: "rgba(255,255,255,0.9)" },
+                }
+            );
+            Matter.World.add(engine.world, snowflake);
+        };
+
+        const snowInterval = window.setInterval(spawnSnow, 140);
+
+        Matter.Engine.run(engine);
+        Matter.Render.run(render);
+
+        const handleResize = () => {
+            const width = container.clientWidth;
+            render.canvas.width = width;
+            render.options.width = width;
+            Matter.Body.setPosition(ground, { x: width / 2, y: 235 });
+        };
+
+        window.addEventListener("resize", handleResize);
+
+        return () => {
+            window.clearInterval(snowInterval);
+            window.removeEventListener("resize", handleResize);
+            Matter.Render.stop(render);
+            Matter.Engine.clear(engine);
+            if (render.canvas.parentNode) {
+                render.canvas.parentNode.removeChild(render.canvas);
+            }
+        };
+    }, []);
     return (
         <main className={styles.main}>
+            <header className={styles.header}>
+                <div className={styles.headerInner}>
+                    <div className={styles.logo}>Carter Moyer Snow Removal</div>
+                    <nav className={styles.nav}>
+                        <a href="#services">Services</a>
+                        <a href="#pricing">Pricing</a>
+                        <a href="#about">About</a>
+                        <a href="#contact">Contact</a>
+                    </nav>
+                    <a className={styles.primaryButton} href="#contact">
+                        Get a quote
+                    </a>
+                </div>
+            </header>
             <section className={styles.hero}>
+                <div ref={snowSceneRef} className={styles.snowScene} aria-hidden="true" />
                 <div className={styles.heroInner}>
-                    <div className={styles.heroCard}>
+                    <div className={styles.heroCard} ref={heroCardRef}>
                         <div className={styles.pillRow}>
                             <span className={styles.pill}>Local • Reliable</span>
                             <span className={styles.pill}>Shovel-based</span>
@@ -227,9 +344,16 @@ export default function Home() {
                             </div>
                         </div>
                     </div>
-                    <div className={styles.heroImageWrap}>
+                    <div className={styles.heroImageWrap} ref={heroImageRef}>
                         <div className={styles.heroImage}>
-                            <img src="/images/carter.jpg" alt="Carter Moyer" />
+                            <Image
+                                src="/images/carter.jpg"
+                                alt="Carter Moyer"
+                                fill
+                                sizes="(max-width: 900px) 100vw, 45vw"
+                                priority
+                                className={styles.heroPhoto}
+                            />
                         </div>
                         <div className={styles.trustCard}>
                             <h2 className="title is-5">Trust & transparency</h2>
@@ -349,7 +473,13 @@ export default function Home() {
                             </ul>
                         </div>
                         <div className={styles.portrait}>
-                            <img src="/images/carter.jpg" alt="Carter Moyer smiling" />
+                            <Image
+                                src="/images/carter.jpg"
+                                alt="Carter Moyer smiling"
+                                fill
+                                sizes="(max-width: 900px) 100vw, 40vw"
+                                className={styles.portraitPhoto}
+                            />
                         </div>
                     </div>
                 </div>
