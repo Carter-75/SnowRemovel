@@ -373,7 +373,7 @@ export default function Home() {
                         <a href="#about">About</a>
                         <a href="#contact">Contact</a>
                     </nav>
-                    <a className={styles.primaryButton} href="#contact">
+                    <a className={styles.primaryButton} href="#pricing">
                         Get a quote
                     </a>
                 </div>
@@ -397,7 +397,7 @@ export default function Home() {
                             </p>
                         </div>
                         <div className={styles.ctaRow}>
-                            <a className={styles.primaryButton} href="#contact">
+                            <a className={styles.primaryButton} href="#pricing">
                                 Get a quick quote
                             </a>
                             <a className={styles.secondaryButton} href="#pricing">
