@@ -311,9 +311,11 @@ export default function Home() {
         }
 
         const engine = Matter.Engine.create();
-        engine.gravity.y = 0.35;
-        const initialWidth = container.clientWidth;
-        const initialHeight = Math.max(container.clientHeight, 220);
+        engine.enableSleeping = true;
+        engine.gravity.y = 0.18;
+        const host = container.parentElement ?? container;
+        const initialWidth = host.clientWidth;
+        const initialHeight = Math.max(host.clientHeight, 220);
         const render = Matter.Render.create({
             element: container,
             engine,
@@ -347,9 +349,11 @@ export default function Home() {
                 -20,
                 radius,
                 {
-                    frictionAir: 0.04 + Math.random() * 0.03,
-                    restitution: 0.0,
-                    friction: 0.2,
+                    frictionAir: 0.08 + Math.random() * 0.04,
+                    restitution: 0.05,
+                    friction: 0.6,
+                    density: 0.001,
+                    sleepThreshold: 45,
                     render: { fillStyle: "rgba(255,255,255,0.9)" },
                 }
             );
@@ -357,8 +361,8 @@ export default function Home() {
                 spawnedAt: Date.now(),
             };
             Matter.Body.setVelocity(snowflake, {
-                x: (Math.random() - 0.5) * 0.6,
-                y: 0.2 + Math.random() * 0.4,
+                x: (Math.random() - 0.5) * 0.3,
+                y: 0.05 + Math.random() * 0.15,
             });
             Matter.World.add(engine.world, snowflake);
         };
@@ -390,8 +394,8 @@ export default function Home() {
         Matter.Render.run(render);
 
         const handleResize = () => {
-            const width = container.clientWidth;
-            const height = Math.max(container.clientHeight, 220);
+            const width = host.clientWidth;
+            const height = Math.max(host.clientHeight, 220);
             currentWidth = width;
             currentHeight = height;
             render.canvas.width = width;

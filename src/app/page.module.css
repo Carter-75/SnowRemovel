@@ -86,8 +86,8 @@
 
 .snowScene {
     position: absolute;
-    inset: 0 0 auto 0;
-    height: clamp(180px, 28vh, 260px);
+    inset: 0;
+    height: 100%;
     pointer-events: none;
     opacity: 0.8;
 }
