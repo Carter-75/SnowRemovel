@@ -111,13 +111,58 @@ export default function Home() {
             .filter(Boolean)
             .join(", ");
 
+    const toLocalDateTimeInput = (date: Date) => {
+        const pad = (value: number) => String(value).padStart(2, "0");
+        const year = date.getFullYear();
+        const month = pad(date.getMonth() + 1);
+        const day = pad(date.getDate());
+        const hours = pad(date.getHours());
+        const minutes = pad(date.getMinutes());
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    const parseLocalDateTime = (value: string) => {
+        const [datePart, timePart] = value.split("T");
+        if (!datePart || !timePart) {
+            return null;
+        }
+        const [year, month, day] = datePart.split("-").map(Number);
+        const [hours, minutes] = timePart.split(":").map(Number);
+        if (!year || !month || !day || Number.isNaN(hours) || Number.isNaN(minutes)) {
+            return null;
+        }
+        return new Date(year, month - 1, day, hours, minutes, 0, 0);
+    };
+
+    const roundToNextFiveMinutes = (date: Date) => {
+        const rounded = new Date(date);
+        const minutes = rounded.getMinutes();
+        const remainder = minutes % 5;
+        if (remainder !== 0) {
+            rounded.setMinutes(minutes + (5 - remainder));
+        }
+        rounded.setSeconds(0, 0);
+        return rounded;
+    };
+
+    const getMinDateTime = () => toLocalDateTimeInput(roundToNextFiveMinutes(new Date()));
+    const getMaxDateTime = () =>
+        toLocalDateTimeInput(new Date(new Date().setMonth(new Date().getMonth() + 3)));
+
+    useEffect(() => {
+        if (requestDateTime) {
+            return;
+        }
+        setRequestDateTime(getMinDateTime());
+    }, [requestDateTime]);
+
     const buildTimeframe = () => requestDateTime;
 
     const isUrgentRequest = () => {
         if (!requestDateTime) {
             return false;
         }
-        const requestedAt = new Date(requestDateTime);
+        const requestedAt = parseLocalDateTime(requestDateTime);
         if (Number.isNaN(requestedAt.getTime())) {
             return false;
         }
@@ -686,12 +731,28 @@ export default function Home() {
                                             id="request-datetime"
                                             type="datetime-local"
                                             value={requestDateTime}
-                                            min={new Date().toISOString().slice(0, 16)}
-                                            max={new Date(new Date().setMonth(new Date().getMonth() + 3))
-                                                .toISOString()
-                                                .slice(0, 16)}
+                                            min={getMinDateTime()}
+                                            max={getMaxDateTime()}
                                             step={300}
-                                            onChange={(event) => setRequestDateTime(event.target.value)}
+                                            onChange={(event) => {
+                                                const nextValue = event.target.value;
+                                                const nextDate = parseLocalDateTime(nextValue);
+                                                const minDate = parseLocalDateTime(getMinDateTime());
+                                                const maxDate = parseLocalDateTime(getMaxDateTime());
+                                                if (!nextDate || !minDate || !maxDate) {
+                                                    setRequestDateTime(nextValue);
+                                                    return;
+                                                }
+                                                if (nextDate < minDate) {
+                                                    setRequestDateTime(getMinDateTime());
+                                                    return;
+                                                }
+                                                if (nextDate > maxDate) {
+                                                    setRequestDateTime(getMaxDateTime());
+                                                    return;
+                                                }
+                                                setRequestDateTime(nextValue);
+                                            }}
                                         />
                                         {requestDateTime && isUrgentRequest() ? (
                                             <div className={styles.urgentNote}>
