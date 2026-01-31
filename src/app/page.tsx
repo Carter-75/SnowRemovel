@@ -242,21 +242,38 @@ export default function Home() {
         return Number(Math.max(0, 10 - ((elapsed - 300) / 300) * 10).toFixed(2));
     }, [discountSecondsLeft, estimate]);
 
-    const discountedPrice = useMemo(() => {
+    const effectiveUpcharge = useMemo(() => {
+        if (!estimate) {
+            return 0;
+        }
+        if (!urgentService) {
+            return 0;
+        }
+        return Number((estimate.basePrice * 0.1).toFixed(2));
+    }, [estimate, urgentService]);
+
+    const effectiveSubtotal = useMemo(() => {
         if (!estimate) {
             return null;
         }
-        const discount = estimate.price * (discountPercent / 100);
-        return Number((estimate.price - discount).toFixed(2));
-    }, [estimate, discountPercent]);
+        return Number((estimate.basePrice + effectiveUpcharge).toFixed(2));
+    }, [estimate, effectiveUpcharge]);
+
+    const discountedPrice = useMemo(() => {
+        if (!estimate || effectiveSubtotal === null) {
+            return null;
+        }
+        const discount = effectiveSubtotal * (discountPercent / 100);
+        return Number((effectiveSubtotal - discount).toFixed(2));
+    }, [estimate, effectiveSubtotal, discountPercent]);
 
     const totalWithDrive = useMemo(() => {
         if (!estimate) {
             return null;
         }
-        const base = discountedPrice ?? estimate.price;
+        const base = discountedPrice ?? effectiveSubtotal ?? estimate.price;
         return Number((base + estimate.driveFee).toFixed(2));
-    }, [estimate, discountedPrice]);
+    }, [estimate, discountedPrice, effectiveSubtotal]);
 
     const urgentService = useMemo(() => isUrgentRequest(requestDateTime), [requestDateTime]);
 
@@ -666,7 +683,7 @@ export default function Home() {
                                 </div>
                                 <div>
                                     Includes snow removal service and travel fee if applicable.
-                                    {estimate.upchargeApplied ? " (10% convenience upcharge included.)" : ""}
+                                    {urgentService ? " (10% convenience upcharge included.)" : ""}
                                 </div>
                                 {discountedPrice !== null ? (
                                     <div>
@@ -684,7 +701,7 @@ export default function Home() {
                                         Base service: ${estimate.basePrice.toFixed(2)}
                                     </div>
                                     <div>
-                                        Convenience upcharge: ${estimate.upchargeAmount.toFixed(2)}
+                                        Convenience upcharge: ${effectiveUpcharge.toFixed(2)}
                                     </div>
                                     <div>
                                         Travel fee: ${estimate.driveFee.toFixed(2)}
