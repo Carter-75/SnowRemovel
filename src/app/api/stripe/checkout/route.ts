@@ -77,7 +77,12 @@ export async function POST(request: Request) {
       address: body.address,
       timeframe: body.timeframe ?? "",
       discountPercent: discountPercent.toFixed(2),
+      discountAmount: discountAmount.toFixed(2),
+      basePrice: estimate.basePrice.toFixed(2),
+      urgencyFee: estimate.upchargeAmount.toFixed(2),
       driveFee: estimate.driveFee.toFixed(2),
+      urgentService: estimate.upchargeApplied ? "true" : "false",
+      grossTotal: totalWithDrive.toFixed(2),
     },
   });
 

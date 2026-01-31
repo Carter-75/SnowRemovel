@@ -1,40 +1,74 @@
 %PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
 1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
+<<
+/F1 2 0 R /F2 3 0 R
+>>
 endobj
 2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
 endobj
 3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
 endobj
 4 0 obj
-<< /Length 510 >>
-stream
-BT
-/F1 12 Tf
-72 740 Td (CUSTOMER'S RIGHT TO CANCEL) Tj
-0 -18 Td (YOU MAY CANCEL THIS AGREEMENT BY MAILING A WRITTEN NOTICE TO CARTER MOYER SNOW REMOVAL,) Tj
-0 -16 Td (401 GILLETTE ST, LA CROSSE, WI 54603 BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER YOU) Tj
-0 -16 Td (SIGNED THIS AGREEMENT. IF YOU WISH, YOU MAY USE THIS PAGE AS THAT NOTICE BY WRITING) Tj
-0 -16 Td ("I HEREBY CANCEL" AND ADDING YOUR NAME AND ADDRESS. A DUPLICATE OF THIS PAGE IS PROVIDED) Tj
-0 -16 Td (BY THE SELLER FOR YOUR RECORDS.) Tj
-ET
-endstream
+<<
+/Contents 8 0 R /MediaBox [ 0 0 612 792 ] /Parent 7 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
 endobj
 5 0 obj
-<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+<<
+/PageMode /UseNone /Pages 7 0 R /Type /Catalog
+>>
+endobj
+6 0 obj
+<<
+/Author (\(anonymous\)) /CreationDate (D:20260131134039-06'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20260131134039-06'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (\(unspecified\)) /Title (Right to Cancel) /Trapped /False
+>>
+endobj
+7 0 obj
+<<
+/Count 1 /Kids [ 4 0 R ] /Type /Pages
+>>
+endobj
+8 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 669
+>>
+stream
+Gas2F?#SFN'Sc)P'sDr&-HM@/YM@AJ"t\l2ZV;%[DURIO9SB>fXiA-5E@>KfW3VXikMu7,*ZYbD*O#DW,r!mE2Y5l&cqj-8c2]m0f:CNRpJErB?kiB89JO#9e^#7No.EYb;j*"KDdl^oheGi4B+U"NX#K6s9;StJb?r!P.nDC%B]ojJ91'bMJc6,W(&`Vd#iR/%s"VM<MfBb[h9Y"KmYQrd\gNQ)Y.MuF8D*b@!I>n'fN`Hgn5No/VPK#:3X<Pp$E\T21t*Z0-Z5oo7$=[_4O\LSR]R]XP!-%ZLOnc"0&i6s/!THFAdDtF'^oHV0H?&,n!NZK-92\NV<pgZ)1c`7,GU1bFK%[NPsRmKCh=ctn4Lo'*aO=Y&@4:,&o,h3g#Q&=U?\IucfQ3@;3:%K0CiqM>0hBo$SM8I4J"X=1]iRZRj:jfPU5)h08c!Y"R4:GU?-eS6:S[n5K)/;BE'`6&.qd'Z8JXA%7l)*E)Mr`b[dN>Zg+Y=(^BDf,o@+^T.PV"bSs1dk53$^G'UErp8H7%RlN;1PkbpemSMlii*c6f*fi!d^>5K^:ulb/lEWI>H9D,qCr9"FQ)JG%esJZ2<F)I7phi<8#CV(9%"$(i)jG8r`X:=p0\^fXU&.bg)`05?=RfiYD`\:I9`;[W$o[qOH5PlD"Y8d,Hi~>endstream
 endobj
 xref
-0 6
+0 9
 0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000241 00000 n 
-0000000801 00000 n 
+0000000061 00000 n 
+0000000102 00000 n 
+0000000209 00000 n 
+0000000321 00000 n 
+0000000514 00000 n 
+0000000582 00000 n 
+0000000864 00000 n 
+0000000923 00000 n 
 trailer
-<< /Size 6 /Root 1 0 R >>
+<<
+/ID 
+[<5846eb21b8773eda9b949347fb964174><5846eb21b8773eda9b949347fb964174>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 6 0 R
+/Root 5 0 R
+/Size 9
+>>
 startxref
-876
+1682
 %%EOF

@@ -136,6 +136,7 @@ export async function POST(request: Request) {
       <p><strong>Total estimate:</strong> $${body.totalWithDrive?.toFixed(2) ?? estimate?.price.toFixed(2)}</p>
       <p>This total includes snow removal service and any applicable travel fee.</p>
       <p>${travelFeeNote} ${urgencyNote}</p>
+      <p>If you need to cancel before the scheduled service day, email cartermoyer75@gmail.com or text 920-904-2695.</p>
       <p>Attached are your Terms & Conditions and two copies of the Right to Cancel notice for your records.</p>
     `;
 

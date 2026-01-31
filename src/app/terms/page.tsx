@@ -16,13 +16,21 @@ export default function TermsPage() {
           <div className={styles.card}>
             <h2 className="title is-5">Payment & Drive Fee Policy</h2>
             <ul className={styles.list}>
-              <li>Under 30 minutes one-way: No upfront deposit required. No drive fee if under 15 minutes.</li>
+              <li>Under 30 minutes one-way: Full payment is required upfront. No drive fee if under 15 minutes.</li>
               <li>30–59 minutes one-way: 50% of the drive fee is required upfront and is non‑refundable if cancelled.</li>
               <li>60+ minutes one-way: 50% of the total (snow removal + drive fee) is required upfront and is non‑refundable if cancelled.</li>
             </ul>
             <p className="has-text-grey">
+              Payment is required before dispatch. Service will not begin and no travel will occur until required
+              payment or deposit has been received.
+            </p>
+            <p className="has-text-grey">
               Snow placement: Snow will be moved onto the customer’s yard or designated area. Snow is not pushed
               into public roadways.
+            </p>
+            <p className="has-text-grey">
+              Standard scheduling requires at least 3 business days notice. Requests inside this window are treated
+              as urgent and may require an emergency waiver for immediate service.
             </p>
             <p className="has-text-grey">
               Urgency upcharge: A 10% convenience upcharge applies to all services requested to be completed
@@ -43,7 +51,8 @@ export default function TermsPage() {
             </p>
             <p className="has-text-grey">
               Cancellation requests may also be sent by email or text as a written notice. The statutory notice
-              above is provided verbatim and remains the controlling language.
+              above is provided verbatim and remains the controlling language. Email or text cancellations must be
+              received before the scheduled service day. Email: cartermoyer75@gmail.com. Text: 920-904-2695.
             </p>
 
             <h2 className="title is-5">Provider Right to Cancel</h2>

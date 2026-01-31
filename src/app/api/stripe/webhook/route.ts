@@ -1,8 +1,58 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import path from "path";
+import { readFile } from "fs/promises";
+
+import {
+  calculateIncrementalEstimate,
+  calculateYtdTaxSummary,
+  formatCurrency,
+  taxConstants,
+} from "@/lib/financial-engine";
+import { loadFinancialState, persistFinancialState } from "@/lib/financial-store";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
+const RESEND_FROM = process.env.RESEND_FROM ?? "";
+const RESEND_TO = process.env.RESEND_TO ?? "";
+const BUSINESS_ADDRESS =
+  process.env.BUSINESS_ADDRESS ??
+  process.env.DRIVE_ORIGIN_ADDRESS ??
+  "401 Gillette St, La Crosse, WI 54603";
+
+const parseNumber = (value?: string | null) => {
+  const parsed = Number.parseFloat(String(value ?? ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const isEmergencyTimeframe = (timeframe: string) => {
+  const normalized = timeframe.toLowerCase();
+  return /(within\s*3\s*day|3\s*day|three\s*day|urgent|asap|immediate)/.test(normalized);
+};
+
+const sendResendEmail = async (payload: {
+  to: string[];
+  subject: string;
+  html: string;
+  attachments?: Array<{ filename: string; content: string }>;
+}) => {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: RESEND_FROM,
+      ...payload,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to send email.");
+  }
+};
 
 export async function POST(request: Request) {
   if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET) {
@@ -25,7 +75,149 @@ export async function POST(request: Request) {
   }
 
   if (event.type === "checkout.session.completed") {
-    // Placeholder for record-keeping or email automation
+    if (!RESEND_API_KEY || !RESEND_FROM || !RESEND_TO) {
+      return NextResponse.json({ error: "Email service is not configured." }, { status: 500 });
+    }
+
+    const session = event.data.object as Stripe.Checkout.Session;
+    const paymentId =
+      (typeof session.payment_intent === "string" && session.payment_intent) || session.id;
+    const customerEmail = session.customer_email ?? null;
+    const metadata = session.metadata ?? {};
+
+    const gross = Number(((session.amount_total ?? 0) / 100).toFixed(2));
+    const basePrice = parseNumber(metadata.basePrice);
+    const urgencyFee = parseNumber(metadata.urgencyFee);
+    const driveFee = parseNumber(metadata.driveFee);
+    const discountAmount = parseNumber(metadata.discountAmount);
+    const timeframe = metadata.timeframe ?? "";
+    const resolvedBasePrice =
+      basePrice > 0 ? basePrice : Math.max(0, gross - driveFee - urgencyFee + discountAmount);
+
+    const previousState = await loadFinancialState();
+    if (previousState.processedEventIds.includes(event.id)) {
+      return NextResponse.json({ received: true });
+    }
+
+    const previousGross = previousState.ytdGross ?? 0;
+    const incremental = calculateIncrementalEstimate(previousGross, gross);
+    const newGross = Number((previousGross + gross).toFixed(2));
+    const ytdSummary = calculateYtdTaxSummary(newGross);
+    const marginalRatePercent = Math.round(ytdSummary.federalMarginalRate * 100);
+
+    const updatedState = {
+      ...previousState,
+      ytdGross: newGross,
+      updatedAt: new Date().toISOString(),
+      processedEventIds: [...previousState.processedEventIds, event.id],
+      transactions: [
+        ...previousState.transactions,
+        {
+          id: paymentId,
+          createdAt: new Date().toISOString(),
+          gross,
+          basePrice: resolvedBasePrice,
+          driveFee,
+          urgencyFee,
+          discountAmount,
+          customerEmail,
+          address: metadata.address ?? null,
+        },
+      ],
+    };
+
+    await persistFinancialState(updatedState);
+
+    const discountLine = discountAmount > 0
+      ? `<p><strong>Discount applied:</strong> ${formatCurrency(discountAmount)}</p>`
+      : "";
+
+    const ownerHtml = `
+      <h2>Owner's Financial Breakdown</h2>
+      <h3>Current Payment Details</h3>
+      <p><strong>Gross received:</strong> ${formatCurrency(gross)}</p>
+      <p><strong>Base price:</strong> ${formatCurrency(resolvedBasePrice)}</p>
+      <p><strong>Drive fee:</strong> ${formatCurrency(driveFee)}</p>
+      <p><strong>Urgency fee:</strong> ${formatCurrency(urgencyFee)}</p>
+      ${discountLine}
+      <hr />
+      <h3>Current Estimate for THIS Payment</h3>
+      <p><strong>Estimated net after taxes:</strong> ${formatCurrency(incremental.netAfterTaxes)}</p>
+      <p><strong>Estimated taxes for this payment:</strong> ${formatCurrency(
+        incremental.incrementalTotalTax
+      )}</p>
+      <p>Self-employment: ${formatCurrency(incremental.incrementalSeTax)} | Federal: ${formatCurrency(
+        incremental.incrementalFederalTax
+      )} | State: ${formatCurrency(incremental.incrementalStateTax)}</p>
+      <hr />
+      <h3>Running YTD Totals</h3>
+      <p><strong>Total gross YTD:</strong> ${formatCurrency(ytdSummary.grossYtd)}</p>
+      <p><strong>Total SE tax owed YTD:</strong> ${formatCurrency(ytdSummary.seTax)}</p>
+      <p><strong>Total federal tax owed YTD:</strong> ${formatCurrency(
+        ytdSummary.federalTaxAfterCredits
+      )}</p>
+      <p><strong>Total state tax owed YTD:</strong> ${formatCurrency(
+        ytdSummary.stateTaxAfterCredits
+      )}</p>
+      <p><strong>Total tax owed YTD:</strong> ${formatCurrency(ytdSummary.totalTaxAfterCredits)}</p>
+      <p><strong>Current marginal bracket:</strong> You are currently in the ${marginalRatePercent}% Federal Bracket.</p>
+      <h3>Applied Deductions & Credits</h3>
+      <ul>
+        <li>Federal Standard Deduction: ${formatCurrency(taxConstants.FEDERAL_STANDARD_DEDUCTION)}</li>
+        <li>American Opportunity Tax Credit (AOTC): ${formatCurrency(taxConstants.AOTC_CREDIT)}</li>
+        <li>WI Rent Credit: ${formatCurrency(taxConstants.WI_RENT_CREDIT)}</li>
+      </ul>
+      <p><em>THIS IS A PRELIMINARY ESTIMATE FOR TRACKING PURPOSES AND DOES NOT CONSTITUTE OFFICIAL TAX ADVICE.</em></p>
+    `;
+
+    await sendResendEmail({
+      to: [RESEND_TO],
+      subject: "Owner's Financial Breakdown - Payment Received",
+      html: ownerHtml,
+    });
+
+    if (customerEmail) {
+      const termsPath = path.join(process.cwd(), "public", "legal", "terms.pdf");
+      const cancelPath = path.join(process.cwd(), "public", "legal", "right-to-cancel.pdf");
+      const [termsPdf, cancelPdf] = await Promise.all([
+        readFile(termsPath),
+        readFile(cancelPath),
+      ]);
+
+      const emergencyWaiver = isEmergencyTimeframe(timeframe)
+        ? `<p><strong>Emergency Waiver:</strong> You requested completion within 3 days. Service may begin immediately based on your emergency request.</p>`
+        : "";
+
+      const customerHtml = `
+        <h2>Payment Received - Snow Removal Service</h2>
+        <p><strong>Total price paid:</strong> ${formatCurrency(gross)}</p>
+        <p>This service is NON-TAXABLE for sales tax purposes in Wisconsin.</p>
+        ${emergencyWaiver}
+        <p style="font-size:12pt;font-weight:700;">BUYER'S RIGHT TO CANCEL: You may cancel this transaction at any time prior to midnight of the third business day after the date of this transaction by delivering or mailing a signed and dated notice to ${BUSINESS_ADDRESS}.</p>
+        <p>Cancellation requests may also be sent by email to cartermoyer75@gmail.com or by text to 920-904-2695, and must be received before the scheduled service day.</p>
+        <p><em>THIS IS A PRELIMINARY ESTIMATE FOR TRACKING PURPOSES AND DOES NOT CONSTITUTE OFFICIAL TAX ADVICE.</em></p>
+      `;
+
+      await sendResendEmail({
+        to: [customerEmail],
+        subject: "Payment Confirmation - Snow Removal",
+        html: customerHtml,
+        attachments: [
+          {
+            filename: "terms.pdf",
+            content: termsPdf.toString("base64"),
+          },
+          {
+            filename: "right-to-cancel-copy-1.pdf",
+            content: cancelPdf.toString("base64"),
+          },
+          {
+            filename: "right-to-cancel-copy-2.pdf",
+            content: cancelPdf.toString("base64"),
+          },
+        ],
+      });
+    }
   }
 
   return NextResponse.json({ received: true });
