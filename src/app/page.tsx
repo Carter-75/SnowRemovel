@@ -244,6 +244,9 @@ export default function Home() {
             },
         });
 
+        let currentWidth = initialWidth;
+        let currentHeight = initialHeight;
+
         const ground = Matter.Bodies.rectangle(initialWidth / 2, initialHeight - 5, initialWidth, 10, {
             isStatic: true,
             render: { fillStyle: "rgba(255,255,255,0.0)" },
@@ -254,7 +257,7 @@ export default function Home() {
         const spawnSnow = () => {
             const radius = 3 + Math.random() * 3;
             const snowflake = Matter.Bodies.circle(
-                Math.random() * render.options.width,
+            Math.random() * currentWidth,
                 -20,
                 radius,
                 {
@@ -274,6 +277,8 @@ export default function Home() {
         const handleResize = () => {
             const width = container.clientWidth;
             const height = container.clientHeight || 240;
+            currentWidth = width;
+            currentHeight = height;
             render.canvas.width = width;
             render.canvas.height = height;
             render.options.width = width;
