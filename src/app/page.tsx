@@ -93,7 +93,6 @@ export default function Home() {
         timestamp: number;
     }>(null);
     const [discountSecondsLeft, setDiscountSecondsLeft] = useState(0);
-    const [urgentService, setUrgentService] = useState(false);
     const [requestName, setRequestName] = useState("");
     const [requestEmail, setRequestEmail] = useState("");
     const [requestDate, setRequestDate] = useState("");
@@ -128,12 +127,31 @@ export default function Home() {
         return `${requestDate} at ${formatTime(requestTimeMinutes)}`;
     };
 
+    const isUrgentRequest = () => {
+        if (!requestDate) {
+            return false;
+        }
+        const [year, month, day] = requestDate.split("-").map(Number);
+        if (!year || !month || !day) {
+            return false;
+        }
+        const hours = Math.floor(requestTimeMinutes / 60);
+        const minutes = requestTimeMinutes % 60;
+        const requestedAt = new Date(year, month - 1, day, hours, minutes, 0, 0);
+        if (Number.isNaN(requestedAt.getTime())) {
+            return false;
+        }
+        const diffMs = requestedAt.getTime() - Date.now();
+        return diffMs > 0 && diffMs <= 3 * 24 * 60 * 60 * 1000;
+    };
+
     const handleEstimate = async () => {
         const fullAddress = buildFullAddress();
         if (!fullAddress) {
             setError("Enter a full address to estimate pricing.");
             return;
         }
+        const urgentService = isUrgentRequest();
         setIsLoading(true);
         setError("");
         setEstimate(null);
@@ -215,6 +233,7 @@ export default function Home() {
     }, [estimate, discountedPrice]);
 
     const canSubmit = useMemo(() => {
+        const urgentService = isUrgentRequest();
         return (
             Boolean(requestName.trim()) &&
             Boolean(buildFullAddress()) &&
@@ -223,7 +242,7 @@ export default function Home() {
             downloadedTerms &&
             (!urgentService || emergencyWaiver)
         );
-    }, [requestName, streetAddress, unitAddress, cityAddress, stateAddress, zipAddress, requestDate, agreedToTerms, downloadedTerms, urgentService, emergencyWaiver]);
+    }, [requestName, streetAddress, unitAddress, cityAddress, stateAddress, zipAddress, requestDate, requestTimeMinutes, agreedToTerms, downloadedTerms, emergencyWaiver]);
 
 
     const handlePayment = async () => {
@@ -233,6 +252,7 @@ export default function Home() {
             return;
         }
         try {
+            const urgentService = isUrgentRequest();
             const response = await fetch("/api/stripe/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -607,16 +627,6 @@ export default function Home() {
                                 </div>
                             </div>
                         </div>
-                            <div className={styles.checkboxRow}>
-                                <label className={styles.checkboxLabel}>
-                                    <input
-                                        type="checkbox"
-                                        checked={urgentService}
-                                        onChange={(event) => setUrgentService(event.target.checked)}
-                                    />
-                                    <span>Service needed within 3 business days (adds 10% convenience upcharge).</span>
-                                </label>
-                            </div>
                         <button className={styles.primaryButton} type="button" onClick={handleEstimate} disabled={isLoading}>
                             {isLoading ? "Estimating..." : "Estimate price"}
                         </button>
@@ -718,6 +728,11 @@ export default function Home() {
                                             onChange={(event) => setRequestTimeMinutes(Number(event.target.value))}
                                         />
                                         <div className={styles.timeValue}>{formatTime(requestTimeMinutes)}</div>
+                                        {requestDate && isUrgentRequest() ? (
+                                            <div className={styles.urgentNote}>
+                                                Rush service detected (within 3 days). A 10% convenience upcharge will apply.
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </div>
                                 <div className="field">

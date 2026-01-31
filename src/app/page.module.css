@@ -369,6 +369,13 @@
     margin-top: 0.5rem;
     font-weight: 600;
 }
+
+.urgentNote {
+    margin-top: 0.4rem;
+    font-size: 0.9rem;
+    color: #b6462d;
+    font-weight: 600;
+}
     font-size: 0.95rem;
     color: #475569;
     line-height: 1.5;
