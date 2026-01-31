@@ -80,6 +80,7 @@ export default function Home() {
     const [requestName, setRequestName] = useState("");
     const [requestEmail, setRequestEmail] = useState("");
     const [requestAddress, setRequestAddress] = useState("");
+    const [requestTimeframe, setRequestTimeframe] = useState("");
     const [requestDetails, setRequestDetails] = useState("");
 
     const handleEstimate = async () => {
@@ -161,6 +162,7 @@ export default function Home() {
             `Name: ${requestName.trim()}`,
             `Email: ${requestEmail.trim() || "(not provided)"}`,
             `Address: ${requestAddress.trim()}`,
+            `Timeframe: ${requestTimeframe.trim() || "(not provided)"}`,
             `Details: ${requestDetails.trim() || "(none)"}`,
         ];
         if (estimate) {
@@ -178,6 +180,7 @@ export default function Home() {
         requestName,
         requestEmail,
         requestAddress,
+        requestTimeframe,
         requestDetails,
         estimate,
         discountPercent,
@@ -451,6 +454,19 @@ export default function Home() {
                                         type="text"
                                         value={requestAddress}
                                         onChange={(event) => setRequestAddress(event.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="field">
+                                <label className="label" htmlFor="timeframe">Timeframe</label>
+                                <div className="control">
+                                    <input
+                                        className="input"
+                                        id="timeframe"
+                                        placeholder="Today, tomorrow morning, this weekend"
+                                        type="text"
+                                        value={requestTimeframe}
+                                        onChange={(event) => setRequestTimeframe(event.target.value)}
                                     />
                                 </div>
                             </div>
