@@ -10,10 +10,12 @@ const DRIVE_ORIGIN_ADDRESS =
 const DRIVE_MPG = Number.parseFloat(process.env.DRIVE_MPG ?? "30");
 const DRIVE_GAS_PRICE = Number.parseFloat(process.env.DRIVE_GAS_PRICE ?? "3.5");
 const DRIVE_WEAR_RATE = Number.parseFloat(process.env.DRIVE_WEAR_RATE ?? "0.1");
+const DRIVE_PER_MILE_RATE = Number.parseFloat(process.env.DRIVE_PER_MILE_RATE ?? "1.5");
 const DRIVE_HOURLY_RATE = Number.parseFloat(process.env.DRIVE_HOURLY_RATE ?? "15");
 const DRIVE_FREE_MINUTES = Number.parseFloat(process.env.DRIVE_FREE_MINUTES ?? "15");
 const DRIVE_HALF_UPFRONT_MINUTES = Number.parseFloat(process.env.DRIVE_HALF_UPFRONT_MINUTES ?? "30");
 const DRIVE_FULL_UPFRONT_MINUTES = Number.parseFloat(process.env.DRIVE_FULL_UPFRONT_MINUTES ?? "60");
+const SERVICE_AREA_SQRT_FACTOR = Number.parseFloat(process.env.SNOW_SERVICE_AREA_SQRT_FACTOR ?? "5");
 
 const metersToSquareFeet = (sqMeters: number) => sqMeters * 10.7639;
 
@@ -33,6 +35,22 @@ const polygonArea = (rings: number[][][]) => {
     total += ringArea(ring);
   }
   return Math.abs(total);
+};
+
+const smallestParcelAreaSqMeters = (features: Array<{ geometry?: { rings?: number[][][] } }>) => {
+  let smallest = Number.POSITIVE_INFINITY;
+  for (const feature of features) {
+    const rings = feature.geometry?.rings;
+    if (!rings || !rings.length) {
+      continue;
+    }
+    const area = polygonArea(rings);
+    if (area > 0 && area < smallest) {
+      smallest = area;
+    }
+  }
+
+  return Number.isFinite(smallest) ? smallest : null;
 };
 
 const geocodeAddress = async (address: string) => {
@@ -94,14 +112,17 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
     features?: Array<{ geometry?: { rings?: number[][][] } }>;
   };
 
-  const geometry = parcelData.features?.[0]?.geometry?.rings;
-  if (!geometry) {
+  const areaSqMeters = parcelData.features
+    ? smallestParcelAreaSqMeters(parcelData.features)
+    : null;
+
+  if (!areaSqMeters) {
     return null;
   }
-
-  const areaSqMeters = polygonArea(geometry);
-  const areaSqFt = metersToSquareFeet(areaSqMeters);
-  const dynamicRate = BASE_RATE_PER_SQFT + (areaSqFt / 1000) * RATE_PER_1000_SQFT;
+  const rawSqFt = metersToSquareFeet(areaSqMeters);
+  const areaSqFt = Math.sqrt(rawSqFt) * SERVICE_AREA_SQRT_FACTOR;
+  const sizeFactor = Math.log10(areaSqFt / 1000 + 1);
+  const dynamicRate = BASE_RATE_PER_SQFT + sizeFactor * RATE_PER_1000_SQFT;
   const basePrice = areaSqFt * dynamicRate;
   const upchargeAmount = urgentService ? basePrice * 0.1 : 0;
   const price = basePrice + upchargeAmount;
@@ -139,7 +160,7 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
           roundTripMinutes = driveMinutes * 2;
           if (driveMinutes > DRIVE_FREE_MINUTES) {
             const gasPerMile = DRIVE_GAS_PRICE / DRIVE_MPG;
-            const perMileCost = gasPerMile + DRIVE_WEAR_RATE;
+            const perMileCost = Math.max(DRIVE_PER_MILE_RATE, gasPerMile + DRIVE_WEAR_RATE);
             const oneWayCost = driveMiles * perMileCost;
             const roundTripHours = (summary.duration * 2) / 3600;
             const timePay = roundTripHours * DRIVE_HOURLY_RATE;
