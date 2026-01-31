@@ -78,6 +78,12 @@ export default function Home() {
         price: number;
         rate: number;
         jobType: string;
+        driveFee: number;
+        driveMiles: number;
+        driveMinutes: number;
+        roundTripMiles: number;
+        roundTripMinutes: number;
+        upfrontFee: number;
         timestamp: number;
     }>(null);
     const [discountSecondsLeft, setDiscountSecondsLeft] = useState(0);
@@ -113,6 +119,12 @@ export default function Home() {
                 price: data.price,
                 rate: data.rate,
                 jobType: data.jobType,
+                driveFee: data.driveFee,
+                driveMiles: data.driveMiles,
+                driveMinutes: data.driveMinutes,
+                roundTripMiles: data.roundTripMiles,
+                roundTripMinutes: data.roundTripMinutes,
+                upfrontFee: data.upfrontFee,
                 timestamp: data.timestamp,
             });
             setRequestAddress(address.trim());
@@ -160,6 +172,14 @@ export default function Home() {
         return Number((estimate.price - discount).toFixed(2));
     }, [estimate, discountPercent]);
 
+    const totalWithDrive = useMemo(() => {
+        if (!estimate) {
+            return null;
+        }
+        const base = discountedPrice ?? estimate.price;
+        return Number((base + estimate.driveFee).toFixed(2));
+    }, [estimate, discountedPrice]);
+
     const mailtoLink = useMemo(() => {
         if (!requestName.trim() || !requestAddress.trim()) {
             return "";
@@ -177,8 +197,11 @@ export default function Home() {
                 `Estimate sqft: ${estimate.sqft.toLocaleString()}`,
                 `Base price: $${estimate.price.toFixed(2)} (${estimate.jobType})`,
                 `Dynamic rate: $${estimate.rate.toFixed(4)} per sq ft`,
+                `Drive fee: $${estimate.driveFee.toFixed(2)} (${estimate.driveMiles.toFixed(2)} mi, ${estimate.driveMinutes.toFixed(0)} min one-way)`,
+                `Round trip: ${estimate.roundTripMiles.toFixed(2)} mi, ${estimate.roundTripMinutes.toFixed(0)} min`,
+                `Upfront due: $${estimate.upfrontFee.toFixed(2)}`,
                 `Discount: ${discountPercent}%`,
-                `Final price: $${discountedPrice?.toFixed(2)}`
+                `Final price: $${totalWithDrive?.toFixed(2)}`
             );
         }
         const body = lines.join("\n");
@@ -192,6 +215,7 @@ export default function Home() {
         estimate,
         discountPercent,
         discountedPrice,
+        totalWithDrive,
     ]);
 
     useEffect(() => {
@@ -362,6 +386,7 @@ export default function Home() {
                             <span className={styles.pill}>Local • Reliable</span>
                             <span className={styles.pill}>Shovel-based</span>
                             <span className={styles.pill}>Same-day priority</span>
+                            <span className={styles.pill}>Anywhere in Wisconsin</span>
                         </div>
                         <div>
                             <h1 className={styles.heroTitle}>Snow removal that feels safe, fast, and personal.</h1>
@@ -494,11 +519,20 @@ export default function Home() {
                                 <div>
                                     <strong>Dynamic rate:</strong> ${estimate.rate.toFixed(4)} per sq ft
                                 </div>
+                                <div>
+                                        <strong>Drive fee:</strong> ${estimate.driveFee.toFixed(2)} ({estimate.driveMiles.toFixed(2)} mi, {estimate.driveMinutes.toFixed(0)} min one-way)
+                                </div>
+                                <div>
+                                    <strong>Round trip:</strong> {estimate.roundTripMiles.toFixed(2)} mi, {estimate.roundTripMinutes.toFixed(0)} min
+                                </div>
+                                <div>
+                                    <strong>Upfront due (if applicable):</strong> ${estimate.upfrontFee.toFixed(2)}
+                                </div>
                                 {discountedPrice !== null ? (
                                     <div>
                                         <strong>Limited-time discount:</strong> {discountPercent}% off for the next{ " " }
                                         {Math.floor(discountSecondsLeft / 60)}:{String(discountSecondsLeft % 60).padStart(2, "0")} •
-                                        Final price ${discountedPrice.toFixed(2)}
+                                        Final price ${totalWithDrive?.toFixed(2)}
                                     </div>
                                 ) : null}
                             </div>
@@ -691,6 +725,11 @@ export default function Home() {
                             </div>
                             <div>
                                 <strong>Service area:</strong> <span className="has-text-grey">Local neighborhoods within 15 miles</span>
+                            </div>
+                            <div className={styles.policyNote}>
+                                Drive fee policy: Trips over 30 minutes one-way require a 50% drive-fee deposit. Trips over 60
+                                minutes one-way require 50% of the total (snow removal + drive fee) upfront. Deposits are
+                                non‑refundable if cancelled.
                             </div>
                         </div>
                     </div>

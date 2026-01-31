@@ -5,7 +5,17 @@ const RATE_PER_1000_SQFT = Number.parseFloat(process.env.SNOW_RATE_PER_1000_SQFT
 const SHORT_JOB_MAX_SQFT = Number.parseFloat(process.env.SNOW_SHORT_JOB_MAX_SQFT ?? "450");
 const PARCEL_LAYER_URL =
   process.env.PARCEL_LAYER_URL ??
-  "https://gis.lacrossecounty.org/gisserver/rest/services/ParcelLayers/Landnav_OwnerParcel_SpatialView/FeatureServer/0";
+  "https://services3.arcgis.com/n6uYoouQZW75n5WI/arcgis/rest/services/Wisconsin_Statewide_Parcels/FeatureServer/0";
+const ORS_API_KEY = process.env.ORS_API_KEY ?? "";
+const DRIVE_ORIGIN_ADDRESS =
+  process.env.DRIVE_ORIGIN_ADDRESS ?? "401 Gillette St, La Crosse, WI 54603";
+const DRIVE_MPG = Number.parseFloat(process.env.DRIVE_MPG ?? "30");
+const DRIVE_GAS_PRICE = Number.parseFloat(process.env.DRIVE_GAS_PRICE ?? "3.5");
+const DRIVE_WEAR_RATE = Number.parseFloat(process.env.DRIVE_WEAR_RATE ?? "0.1");
+const DRIVE_HOURLY_RATE = Number.parseFloat(process.env.DRIVE_HOURLY_RATE ?? "15");
+const DRIVE_FREE_MINUTES = Number.parseFloat(process.env.DRIVE_FREE_MINUTES ?? "15");
+const DRIVE_HALF_UPFRONT_MINUTES = Number.parseFloat(process.env.DRIVE_HALF_UPFRONT_MINUTES ?? "30");
+const DRIVE_FULL_UPFRONT_MINUTES = Number.parseFloat(process.env.DRIVE_FULL_UPFRONT_MINUTES ?? "60");
 
 const metersToSquareFeet = (sqMeters: number) => sqMeters * 10.7639;
 
@@ -27,6 +37,34 @@ const polygonArea = (rings: number[][][]) => {
   return Math.abs(total);
 };
 
+const geocodeAddress = async (address: string) => {
+  const geocodeUrl = new URL("https://nominatim.openstreetmap.org/search");
+  geocodeUrl.searchParams.set("format", "json");
+  geocodeUrl.searchParams.set("limit", "1");
+  geocodeUrl.searchParams.set("q", address);
+
+  const geocodeResponse = await fetch(geocodeUrl.toString(), {
+    headers: {
+      "User-Agent": "CarterSnowRemoval/1.0 (contact: cartermoyer75@gmail.com)",
+    },
+    cache: "no-store",
+  });
+
+  if (!geocodeResponse.ok) {
+    return null;
+  }
+
+  const geocodeData = (await geocodeResponse.json()) as Array<{ lat: string; lon: string }>;
+  if (!geocodeData.length) {
+    return null;
+  }
+
+  return {
+    lat: Number.parseFloat(geocodeData[0].lat),
+    lon: Number.parseFloat(geocodeData[0].lon),
+  };
+};
+
 export async function POST(request: Request) {
   if (!PARCEL_LAYER_URL) {
     return NextResponse.json(
@@ -40,31 +78,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Address is required." }, { status: 400 });
   }
 
-  const geocodeUrl = new URL("https://nominatim.openstreetmap.org/search");
-  geocodeUrl.searchParams.set("format", "json");
-  geocodeUrl.searchParams.set("limit", "1");
-  geocodeUrl.searchParams.set("q", body.address);
-
-  const geocodeResponse = await fetch(geocodeUrl.toString(), {
-    headers: {
-      "User-Agent": "CarterSnowRemoval/1.0 (contact: cartermoyer75@gmail.com)",
-    },
-    cache: "no-store",
-  });
-
-  if (!geocodeResponse.ok) {
+  const destination = await geocodeAddress(body.address);
+  if (!destination) {
     return NextResponse.json({ error: "Unable to locate that address." }, { status: 400 });
   }
 
-  const geocodeData = (await geocodeResponse.json()) as Array<{ lat: string; lon: string }>;
-  if (!geocodeData.length) {
-    return NextResponse.json({ error: "No match found for that address." }, { status: 404 });
-  }
-
-  const { lat, lon } = geocodeData[0];
-
   const parcelUrl = new URL(`${PARCEL_LAYER_URL.replace(/\/$/, "")}/query`);
-  parcelUrl.searchParams.set("geometry", `${lon},${lat}`);
+  parcelUrl.searchParams.set("geometry", `${destination.lon},${destination.lat}`);
   parcelUrl.searchParams.set("geometryType", "esriGeometryPoint");
   parcelUrl.searchParams.set("inSR", "4326");
   parcelUrl.searchParams.set("spatialRel", "esriSpatialRelIntersects");
@@ -93,11 +113,65 @@ export async function POST(request: Request) {
   const price = areaSqFt * dynamicRate;
   const jobType = areaSqFt <= SHORT_JOB_MAX_SQFT ? "Short job" : "Long job";
 
+  let driveFee = 0;
+  let driveMiles = 0;
+  let driveMinutes = 0;
+  let roundTripMiles = 0;
+  let roundTripMinutes = 0;
+  let upfrontFee = 0;
+  if (ORS_API_KEY) {
+    const origin = await geocodeAddress(DRIVE_ORIGIN_ADDRESS);
+    if (origin) {
+      const orsUrl = new URL("https://api.openrouteservice.org/v2/directions/driving-car");
+      orsUrl.searchParams.set("start", `${origin.lon},${origin.lat}`);
+      orsUrl.searchParams.set("end", `${destination.lon},${destination.lat}`);
+
+      const orsResponse = await fetch(orsUrl.toString(), {
+        headers: {
+          Authorization: ORS_API_KEY,
+        },
+        cache: "no-store",
+      });
+
+      if (orsResponse.ok) {
+        const orsData = (await orsResponse.json()) as {
+          features?: Array<{ properties?: { summary?: { distance?: number; duration?: number } } }>;
+        };
+        const summary = orsData.features?.[0]?.properties?.summary;
+        if (summary?.distance && summary?.duration) {
+          driveMiles = summary.distance / 1609.34;
+          driveMinutes = summary.duration / 60;
+          roundTripMiles = driveMiles * 2;
+          roundTripMinutes = driveMinutes * 2;
+          if (driveMinutes > DRIVE_FREE_MINUTES) {
+            const gasPerMile = DRIVE_GAS_PRICE / DRIVE_MPG;
+            const perMileCost = gasPerMile + DRIVE_WEAR_RATE;
+            const oneWayCost = driveMiles * perMileCost;
+            const roundTripHours = (summary.duration * 2) / 3600;
+            const timePay = roundTripHours * DRIVE_HOURLY_RATE;
+            driveFee = Math.max(oneWayCost * 1.5, timePay);
+          }
+          if (driveMinutes >= DRIVE_FULL_UPFRONT_MINUTES) {
+            upfrontFee = (price + driveFee) / 2;
+          } else if (driveMinutes >= DRIVE_HALF_UPFRONT_MINUTES) {
+            upfrontFee = driveFee / 2;
+          }
+        }
+      }
+    }
+  }
+
   return NextResponse.json({
     sqft: Number(areaSqFt.toFixed(1)),
     price: Number(price.toFixed(2)),
     rate: Number(dynamicRate.toFixed(4)),
     jobType,
+    driveFee: Number(driveFee.toFixed(2)),
+    driveMiles: Number(driveMiles.toFixed(2)),
+    driveMinutes: Number(driveMinutes.toFixed(1)),
+    roundTripMiles: Number(roundTripMiles.toFixed(2)),
+    roundTripMinutes: Number(roundTripMinutes.toFixed(1)),
+    upfrontFee: Number(upfrontFee.toFixed(2)),
     timestamp: Date.now(),
   });
 }
