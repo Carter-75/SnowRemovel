@@ -160,7 +160,7 @@ export default function Home() {
         };
 
         updateCountdown();
-        const interval = window.setInterval(updateCountdown, 1000);
+        const interval = window.setInterval(updateCountdown, 5000);
         return () => window.clearInterval(interval);
     }, [estimate]);
 
