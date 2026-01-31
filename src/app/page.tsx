@@ -312,7 +312,7 @@ export default function Home() {
 
         const engine = Matter.Engine.create();
         engine.enableSleeping = true;
-        engine.gravity.y = 0.18;
+        engine.gravity.y = 0.22;
         const host = container.parentElement ?? container;
         const initialWidth = host.clientWidth;
         const initialHeight = Math.max(host.clientHeight, 220);
@@ -331,8 +331,11 @@ export default function Home() {
         let currentWidth = initialWidth;
         let currentHeight = initialHeight;
 
-        const ground = Matter.Bodies.rectangle(initialWidth / 2, initialHeight - 1, initialWidth, 6, {
+        const ground = Matter.Bodies.rectangle(initialWidth / 2, initialHeight - 1, initialWidth, 8, {
             isStatic: true,
+            friction: 1,
+            frictionStatic: 1,
+            restitution: 0,
             render: { fillStyle: "rgba(255,255,255,0.0)" },
         });
 
@@ -349,11 +352,12 @@ export default function Home() {
                 -20,
                 radius,
                 {
-                    frictionAir: 0.08 + Math.random() * 0.04,
-                    restitution: 0.05,
-                    friction: 0.6,
-                    density: 0.001,
-                    sleepThreshold: 45,
+                    frictionAir: 0.1 + Math.random() * 0.04,
+                    restitution: 0.02,
+                    friction: 0.9,
+                    frictionStatic: 0.9,
+                    density: 0.0012,
+                    sleepThreshold: 55,
                     render: { fillStyle: "rgba(255,255,255,0.9)" },
                 }
             );
@@ -361,8 +365,8 @@ export default function Home() {
                 spawnedAt: Date.now(),
             };
             Matter.Body.setVelocity(snowflake, {
-                x: (Math.random() - 0.5) * 0.3,
-                y: 0.05 + Math.random() * 0.15,
+                x: (Math.random() - 0.5) * 0.12,
+                y: 0.04 + Math.random() * 0.12,
             });
             Matter.World.add(engine.world, snowflake);
         };
@@ -373,10 +377,10 @@ export default function Home() {
                 if (body.isStatic) {
                     return;
                 }
-                const wind = (Math.random() - 0.5) * 0.0006;
+                const wind = (Math.random() - 0.5) * 0.00015;
                 Matter.Body.applyForce(body, body.position, { x: wind, y: 0 });
             });
-        }, 600);
+        }, 900);
         const cleanupInterval = window.setInterval(() => {
             const bodies = engine.world.bodies;
             bodies.forEach((body) => {
@@ -441,10 +445,11 @@ export default function Home() {
                 <div className={styles.heroInner}>
                     <div className={styles.heroCard} ref={heroCardRef}>
                         <div className={styles.pillRow}>
-                            <span className={styles.pill}>Local • Reliable</span>
-                            <span className={styles.pill}>Shovel-based</span>
-                            <span className={styles.pill}>Same-day priority</span>
-                            <span className={styles.pill}>Anywhere in Wisconsin</span>
+                            <span className={styles.pill}>Fast response</span>
+                            <span className={styles.pill}>Careful clearing</span>
+                            <span className={styles.pill}>Driveways, walkways, steps</span>
+                            <span className={styles.pill}>Honest pricing</span>
+                            <span className={styles.pill}>No hidden fees</span>
                         </div>
                         <div>
                             <h1 className={styles.heroTitle}>Snow removal that feels safe, fast, and personal.</h1>
@@ -465,7 +470,7 @@ export default function Home() {
                         <div className={styles.statRow}>
                             <div className={styles.stat}>
                                 <strong>Fast response</strong>
-                                <div className="has-text-grey">Same-day when possible</div>
+                                <div className="has-text-grey">Quick replies & scheduling</div>
                             </div>
                             <div className={styles.stat}>
                                 <strong>Careful clearing</strong>
