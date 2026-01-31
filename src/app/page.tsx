@@ -99,8 +99,6 @@ export default function Home() {
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [downloadedTerms, setDownloadedTerms] = useState(false);
     const [emergencyWaiver, setEmergencyWaiver] = useState(false);
-    const [requestStatus, setRequestStatus] = useState("");
-    const [requestError, setRequestError] = useState("");
     const [paymentStatus, setPaymentStatus] = useState("");
     const heroCardRef = useRef<HTMLDivElement | null>(null);
     const heroImageRef = useRef<HTMLDivElement | null>(null);
@@ -203,43 +201,6 @@ export default function Home() {
         );
     }, [requestName, requestAddress, agreedToTerms, downloadedTerms, urgentService, emergencyWaiver]);
 
-    const handleRequest = async () => {
-        setRequestStatus("");
-        setRequestError("");
-        if (!canSubmit) {
-            setRequestError("Name, address, and required agreements are needed.");
-            return;
-        }
-
-        try {
-            const response = await fetch("/api/quote", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: requestName.trim(),
-                    email: requestEmail.trim(),
-                    address: requestAddress.trim(),
-                    timeframe: requestTimeframe.trim(),
-                    details: requestDetails.trim(),
-                    estimate,
-                    discountPercent,
-                    totalWithDrive,
-                    agreedToTerms,
-                    downloadedTerms,
-                    emergencyWaiver,
-                    urgentService,
-                }),
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.error ?? "Unable to send request.");
-            }
-            setRequestStatus("Request sent! Please check your email for a copy of the terms.");
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Unable to send request.";
-            setRequestError(message);
-        }
-    };
 
     const handlePayment = async () => {
         setPaymentStatus("");
@@ -598,10 +559,135 @@ export default function Home() {
                                 ) : null}
                             </div>
                         ) : null}
-                        <button className={styles.secondaryButton} type="button" onClick={handlePayment} disabled={!canSubmit}>
-                            Pay now (full amount)
-                        </button>
-                        {paymentStatus ? <div className={styles.estimateError}>{paymentStatus}</div> : null}
+                        <div className={styles.contactGrid}>
+                            <div className={styles.formCard}>
+                                <h4 className="title is-6">Service details (required for payment)</h4>
+                                <div className="field">
+                                    <label className="label" htmlFor="name">Name</label>
+                                    <div className="control">
+                                        <input
+                                            className="input"
+                                            id="name"
+                                            placeholder="Your name"
+                                            type="text"
+                                            value={requestName}
+                                            onChange={(event) => setRequestName(event.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="field">
+                                    <label className="label" htmlFor="email">Email (optional)</label>
+                                    <div className="control">
+                                        <input
+                                            className="input"
+                                            id="email"
+                                            placeholder="you@email.com"
+                                            type="email"
+                                            value={requestEmail}
+                                            onChange={(event) => setRequestEmail(event.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="field">
+                                    <label className="label" htmlFor="address">Address</label>
+                                    <div className="control">
+                                        <input
+                                            className="input"
+                                            id="address"
+                                            placeholder="Street address"
+                                            type="text"
+                                            value={requestAddress}
+                                            onChange={(event) => setRequestAddress(event.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="field">
+                                    <label className="label" htmlFor="timeframe">Timeframe</label>
+                                    <div className="control">
+                                        <input
+                                            className="input"
+                                            id="timeframe"
+                                            placeholder="Today, tomorrow morning, this weekend"
+                                            type="text"
+                                            value={requestTimeframe}
+                                            onChange={(event) => setRequestTimeframe(event.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="field">
+                                    <label className="label" htmlFor="details">Details</label>
+                                    <div className="control">
+                                        <textarea
+                                            className="textarea"
+                                            id="details"
+                                            placeholder="Driveway size, walkway, steps, timing"
+                                            value={requestDetails}
+                                            onChange={(event) => setRequestDetails(event.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className={styles.downloadRow}>
+                                    <a className={styles.secondaryButton} href="/legal/terms.pdf" download>
+                                        Download Terms (PDF)
+                                    </a>
+                                    <a className={styles.secondaryButton} href="/legal/right-to-cancel.pdf" download>
+                                        Download Right to Cancel (PDF)
+                                    </a>
+                                </div>
+                                <div className={styles.checkboxRow}>
+                                    <label className={styles.checkboxLabel}>
+                                        <input
+                                            type="checkbox"
+                                            checked={agreedToTerms}
+                                            onChange={(event) => setAgreedToTerms(event.target.checked)}
+                                        />
+                                        <span>
+                                            I have read and agree to the{ " " }
+                                            <a href="/terms">Terms and Conditions</a> and{ " " }
+                                            <a href="/privacy">Privacy Policy</a>, including the Payment and Cancellation policies.
+                                        </span>
+                                    </label>
+                                </div>
+                                <div className={styles.checkboxRow}>
+                                    <label className={styles.checkboxLabel}>
+                                        <input
+                                            type="checkbox"
+                                            checked={downloadedTerms}
+                                            onChange={(event) => setDownloadedTerms(event.target.checked)}
+                                        />
+                                        <span>
+                                            I downloaded the Terms and two copies of the Right to Cancel notice and consent to receive
+                                            disclosures electronically.
+                                        </span>
+                                    </label>
+                                </div>
+                                <div className={styles.checkboxRow}>
+                                    <label className={styles.checkboxLabel}>
+                                        <input
+                                            type="checkbox"
+                                            checked={emergencyWaiver}
+                                            onChange={(event) => setEmergencyWaiver(event.target.checked)}
+                                        />
+                                        <span>
+                                            I request immediate emergency service and waive my three-day right to cancel as described
+                                            in the Terms (only if needed for safety/egress).
+                                        </span>
+                                    </label>
+                                </div>
+                                <button
+                                    className={styles.secondaryButton}
+                                    type="button"
+                                    onClick={handlePayment}
+                                    disabled={!canSubmit}
+                                >
+                                    Pay now (full amount)
+                                </button>
+                                {!canSubmit ? (
+                                    <div className={styles.estimateError}>Name, address, and required agreements are needed.</div>
+                                ) : null}
+                                {paymentStatus ? <div className={styles.estimateError}>{paymentStatus}</div> : null}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -690,147 +776,14 @@ export default function Home() {
             <section id="contact" className={styles.section}>
                 <div className={styles.sectionInner}>
                     <div>
-                        <h2 className={styles.sectionTitle}>Request a quote</h2>
+                        <h2 className={styles.sectionTitle}>Quick contact</h2>
                         <p className={styles.sectionSubtitle}>
-                            Use the form to share your address and what you need cleared. I’ll follow up quickly.
+                            Texting is the fastest way to reach me. You can also email and I’ll respond ASAP.
                         </p>
                     </div>
                     <div className={styles.contactGrid}>
                         <div className={styles.formCard}>
-                            <div className="field">
-                                <label className="label" htmlFor="name">Name</label>
-                                <div className="control">
-                                    <input
-                                        className="input"
-                                        id="name"
-                                        placeholder="Your name"
-                                        type="text"
-                                        value={requestName}
-                                        onChange={(event) => setRequestName(event.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className="field">
-                                <label className="label" htmlFor="email">Email (optional)</label>
-                                <div className="control">
-                                    <input
-                                        className="input"
-                                        id="email"
-                                        placeholder="you@email.com"
-                                        type="email"
-                                        value={requestEmail}
-                                        onChange={(event) => setRequestEmail(event.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className="field">
-                                <label className="label" htmlFor="address">Address</label>
-                                <div className="control">
-                                    <input
-                                        className="input"
-                                        id="address"
-                                        placeholder="Street address"
-                                        type="text"
-                                        value={requestAddress}
-                                        onChange={(event) => setRequestAddress(event.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className="field">
-                                <label className="label" htmlFor="timeframe">Timeframe</label>
-                                <div className="control">
-                                    <input
-                                        className="input"
-                                        id="timeframe"
-                                        placeholder="Today, tomorrow morning, this weekend"
-                                        type="text"
-                                        value={requestTimeframe}
-                                        onChange={(event) => setRequestTimeframe(event.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className="field">
-                                <label className="label" htmlFor="details">Details</label>
-                                <div className="control">
-                                    <textarea
-                                        className="textarea"
-                                        id="details"
-                                        placeholder="Driveway size, walkway, steps, timing"
-                                        value={requestDetails}
-                                        onChange={(event) => setRequestDetails(event.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className={styles.downloadRow}>
-                                <a className={styles.secondaryButton} href="/legal/terms.pdf" download>
-                                    Download Terms (PDF)
-                                </a>
-                                <a className={styles.secondaryButton} href="/legal/right-to-cancel.pdf" download>
-                                    Download Right to Cancel (PDF)
-                                </a>
-                            </div>
-                            <div className={styles.checkboxRow}>
-                                <label className={styles.checkboxLabel}>
-                                    <input
-                                        type="checkbox"
-                                        checked={agreedToTerms}
-                                        onChange={(event) => setAgreedToTerms(event.target.checked)}
-                                    />
-                                    <span>
-                                        I have read and agree to the{ " " }
-                                        <a href="/terms">Terms and Conditions</a> and{ " " }
-                                        <a href="/privacy">Privacy Policy</a>, including the Payment and Cancellation policies.
-                                    </span>
-                                </label>
-                            </div>
-                            <div className={styles.checkboxRow}>
-                                <label className={styles.checkboxLabel}>
-                                    <input
-                                        type="checkbox"
-                                        checked={downloadedTerms}
-                                        onChange={(event) => setDownloadedTerms(event.target.checked)}
-                                    />
-                                    <span>
-                                        I downloaded the Terms and two copies of the Right to Cancel notice and consent to receive
-                                        disclosures electronically.
-                                    </span>
-                                </label>
-                            </div>
-                            <div className={styles.checkboxRow}>
-                                <label className={styles.checkboxLabel}>
-                                    <input
-                                        type="checkbox"
-                                        checked={emergencyWaiver}
-                                        onChange={(event) => setEmergencyWaiver(event.target.checked)}
-                                    />
-                                    <span>
-                                        I request immediate emergency service and waive my three-day right to cancel as described
-                                        in the Terms (only if needed for safety/egress).
-                                    </span>
-                                </label>
-                            </div>
-                            <a
-                                className={styles.primaryButton}
-                                href="#"
-                                aria-disabled={!canSubmit}
-                                onClick={(event) => {
-                                    event.preventDefault();
-                                    handleRequest();
-                                }}
-                            >
-                                Email request
-                            </a>
-                            {!canSubmit ? (
-                                <div className={styles.estimateError}>Name, address, and required agreements are needed.</div>
-                            ) : null}
-                            {requestStatus ? <div className={styles.estimateResult}>{requestStatus}</div> : null}
-                            {requestError ? <div className={styles.estimateError}>{requestError}</div> : null}
-                        </div>
-                        <div className={styles.formCard}>
-                            <h3 className="title is-5">Quick contact</h3>
-                            <p className="has-text-grey">
-                                Texting is the fastest way to reach me. You can also email and I’ll respond ASAP.
-                            </p>
+                            <h3 className="title is-5">Contact details</h3>
                             <div>
                                 <strong>Phone:</strong> <span className="has-text-grey">920-904-2695</span>
                             </div>
@@ -844,8 +797,7 @@ export default function Home() {
                                 Drive fee policy: Trips over 30 minutes one-way require a 50% drive-fee deposit. Trips over 60
                                 minutes one-way require 50% of the total (snow removal + drive fee) upfront. Deposits are
                                 non‑refundable if cancelled. A 10% convenience upcharge applies to requests within 3 business days.
-                                I may cancel or decline any
-                                request before work begins; if I cancel, you will not be charged.
+                                I may cancel or decline any request before work begins; if I cancel, you will not be charged.
                             </div>
                         </div>
                     </div>
