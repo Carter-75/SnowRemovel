@@ -76,6 +76,9 @@ export default function Home() {
     const [estimate, setEstimate] = useState<null | {
         sqft: number;
         price: number;
+        basePrice: number;
+        upchargeAmount: number;
+        upchargeApplied: boolean;
         rate: number;
         jobType: string;
         driveFee: number;
@@ -87,11 +90,18 @@ export default function Home() {
         timestamp: number;
     }>(null);
     const [discountSecondsLeft, setDiscountSecondsLeft] = useState(0);
+    const [urgentService, setUrgentService] = useState(false);
     const [requestName, setRequestName] = useState("");
     const [requestEmail, setRequestEmail] = useState("");
     const [requestAddress, setRequestAddress] = useState("");
     const [requestTimeframe, setRequestTimeframe] = useState("");
     const [requestDetails, setRequestDetails] = useState("");
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [downloadedTerms, setDownloadedTerms] = useState(false);
+    const [emergencyWaiver, setEmergencyWaiver] = useState(false);
+    const [requestStatus, setRequestStatus] = useState("");
+    const [requestError, setRequestError] = useState("");
+    const [paymentStatus, setPaymentStatus] = useState("");
     const heroCardRef = useRef<HTMLDivElement | null>(null);
     const heroImageRef = useRef<HTMLDivElement | null>(null);
     const snowSceneRef = useRef<HTMLDivElement | null>(null);
@@ -108,7 +118,7 @@ export default function Home() {
             const response = await fetch("/api/estimate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ address: address.trim() }),
+                body: JSON.stringify({ address: address.trim(), urgentService }),
             });
             const data = await response.json();
             if (!response.ok) {
@@ -117,6 +127,9 @@ export default function Home() {
             setEstimate({
                 sqft: data.sqft,
                 price: data.price,
+                basePrice: data.basePrice,
+                upchargeAmount: data.upchargeAmount,
+                upchargeApplied: data.upchargeApplied,
                 rate: data.rate,
                 jobType: data.jobType,
                 driveFee: data.driveFee,
@@ -180,43 +193,83 @@ export default function Home() {
         return Number((base + estimate.driveFee).toFixed(2));
     }, [estimate, discountedPrice]);
 
-    const mailtoLink = useMemo(() => {
-        if (!requestName.trim() || !requestAddress.trim()) {
-            return "";
+    const canSubmit = useMemo(() => {
+        return (
+            Boolean(requestName.trim()) &&
+            Boolean(requestAddress.trim()) &&
+            agreedToTerms &&
+            downloadedTerms &&
+            (!urgentService || emergencyWaiver)
+        );
+    }, [requestName, requestAddress, agreedToTerms, downloadedTerms, urgentService, emergencyWaiver]);
+
+    const handleRequest = async () => {
+        setRequestStatus("");
+        setRequestError("");
+        if (!canSubmit) {
+            setRequestError("Name, address, and required agreements are needed.");
+            return;
         }
-        const subject = `Snow removal request from ${requestName.trim()}`;
-        const lines = [
-            `Name: ${requestName.trim()}`,
-            `Email: ${requestEmail.trim() || "(not provided)"}`,
-            `Address: ${requestAddress.trim()}`,
-            `Timeframe: ${requestTimeframe.trim() || "(not provided)"}`,
-            `Details: ${requestDetails.trim() || "(none)"}`,
-        ];
-        if (estimate) {
-            lines.push(
-                `Estimate sqft: ${estimate.sqft.toLocaleString()}`,
-                `Base price: $${estimate.price.toFixed(2)} (${estimate.jobType})`,
-                `Dynamic rate: $${estimate.rate.toFixed(4)} per sq ft`,
-                `Drive fee: $${estimate.driveFee.toFixed(2)} (${estimate.driveMiles.toFixed(2)} mi, ${estimate.driveMinutes.toFixed(0)} min one-way)`,
-                `Round trip: ${estimate.roundTripMiles.toFixed(2)} mi, ${estimate.roundTripMinutes.toFixed(0)} min`,
-                `Upfront due: $${estimate.upfrontFee.toFixed(2)}`,
-                `Discount: ${discountPercent}%`,
-                `Final price: $${totalWithDrive?.toFixed(2)}`
-            );
+
+        try {
+            const response = await fetch("/api/quote", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: requestName.trim(),
+                    email: requestEmail.trim(),
+                    address: requestAddress.trim(),
+                    timeframe: requestTimeframe.trim(),
+                    details: requestDetails.trim(),
+                    estimate,
+                    discountPercent,
+                    totalWithDrive,
+                    agreedToTerms,
+                    downloadedTerms,
+                    emergencyWaiver,
+                    urgentService,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.error ?? "Unable to send request.");
+            }
+            setRequestStatus("Request sent! Please check your email for a copy of the terms.");
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Unable to send request.";
+            setRequestError(message);
         }
-        const body = lines.join("\n");
-        return `mailto:cartermoyer75@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    }, [
-        requestName,
-        requestEmail,
-        requestAddress,
-        requestTimeframe,
-        requestDetails,
-        estimate,
-        discountPercent,
-        discountedPrice,
-        totalWithDrive,
-    ]);
+    };
+
+    const handlePayment = async () => {
+        setPaymentStatus("");
+        if (!estimate || !totalWithDrive || !canSubmit) {
+            setPaymentStatus("Get an estimate first.");
+            return;
+        }
+        try {
+            const response = await fetch("/api/stripe/checkout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: requestName.trim() || "Customer",
+                    email: requestEmail.trim(),
+                    address: requestAddress.trim() || address.trim(),
+                    timeframe: requestTimeframe.trim(),
+                    urgentService,
+                    estimateTimestamp: estimate.timestamp,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.url) {
+                throw new Error(data?.error ?? "Unable to start payment.");
+            }
+            window.location.href = data.url;
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Unable to start payment.";
+            setPaymentStatus(message);
+        }
+    };
 
     useEffect(() => {
         if (!heroCardRef.current || !heroImageRef.current) {
@@ -380,6 +433,7 @@ export default function Home() {
             </header>
             <section className={styles.hero}>
                 <div ref={snowSceneRef} className={styles.snowScene} aria-hidden="true" />
+                <div className={styles.heroGlow} aria-hidden="true" />
                 <div className={styles.heroInner}>
                     <div className={styles.heroCard} ref={heroCardRef}>
                         <div className={styles.pillRow}>
@@ -489,7 +543,7 @@ export default function Home() {
                     <div className={styles.formCard}>
                         <h3 className="title is-5">Instant driveway estimate (La Crosse, WI)</h3>
                         <p className="has-text-grey">
-                            Enter your address for a quick estimate based on public parcel data and a per-square-foot rate.
+                                Enter your address for a quick estimate based on public parcel data for anywhere in Wisconsin.
                         </p>
                         <div className="field">
                             <label className="label" htmlFor="estimate-address">Address</label>
@@ -504,6 +558,16 @@ export default function Home() {
                                 />
                             </div>
                         </div>
+                            <div className={styles.checkboxRow}>
+                                <label className={styles.checkboxLabel}>
+                                    <input
+                                        type="checkbox"
+                                        checked={urgentService}
+                                        onChange={(event) => setUrgentService(event.target.checked)}
+                                    />
+                                    <span>Service needed within 3 business days (adds 10% convenience upcharge).</span>
+                                </label>
+                            </div>
                         <button className={styles.primaryButton} type="button" onClick={handleEstimate} disabled={isLoading}>
                             {isLoading ? "Estimating..." : "Estimate price"}
                         </button>
@@ -511,22 +575,11 @@ export default function Home() {
                         {estimate ? (
                             <div className={styles.estimateResult}>
                                 <div>
-                                    <strong>Driveway size:</strong> {estimate.sqft.toLocaleString()} sq ft
+                                    <strong>Total estimate:</strong> ${totalWithDrive?.toFixed(2)}
                                 </div>
                                 <div>
-                                    <strong>Estimated price:</strong> ${estimate.price.toFixed(2)} ({estimate.jobType})
-                                </div>
-                                <div>
-                                    <strong>Dynamic rate:</strong> ${estimate.rate.toFixed(4)} per sq ft
-                                </div>
-                                <div>
-                                        <strong>Drive fee:</strong> ${estimate.driveFee.toFixed(2)} ({estimate.driveMiles.toFixed(2)} mi, {estimate.driveMinutes.toFixed(0)} min one-way)
-                                </div>
-                                <div>
-                                    <strong>Round trip:</strong> {estimate.roundTripMiles.toFixed(2)} mi, {estimate.roundTripMinutes.toFixed(0)} min
-                                </div>
-                                <div>
-                                    <strong>Upfront due (if applicable):</strong> ${estimate.upfrontFee.toFixed(2)}
+                                    Includes snow removal service and travel fee if applicable.
+                                    {estimate.upchargeApplied ? " (10% convenience upcharge included.)" : ""}
                                 </div>
                                 {discountedPrice !== null ? (
                                     <div>
@@ -537,6 +590,10 @@ export default function Home() {
                                 ) : null}
                             </div>
                         ) : null}
+                        <button className={styles.secondaryButton} type="button" onClick={handlePayment} disabled={!canSubmit}>
+                            Pay now (full amount)
+                        </button>
+                        {paymentStatus ? <div className={styles.estimateError}>{paymentStatus}</div> : null}
                     </div>
                 </div>
             </section>
@@ -696,21 +753,70 @@ export default function Home() {
                                     />
                                 </div>
                             </div>
+                            <div className={styles.downloadRow}>
+                                <a className={styles.secondaryButton} href="/legal/terms.pdf" download>
+                                    Download Terms (PDF)
+                                </a>
+                                <a className={styles.secondaryButton} href="/legal/right-to-cancel.pdf" download>
+                                    Download Right to Cancel (PDF)
+                                </a>
+                            </div>
+                            <div className={styles.checkboxRow}>
+                                <label className={styles.checkboxLabel}>
+                                    <input
+                                        type="checkbox"
+                                        checked={agreedToTerms}
+                                        onChange={(event) => setAgreedToTerms(event.target.checked)}
+                                    />
+                                    <span>
+                                        I have read and agree to the{ " " }
+                                        <a href="/terms">Terms and Conditions</a> and{ " " }
+                                        <a href="/privacy">Privacy Policy</a>, including the Payment and Cancellation policies.
+                                    </span>
+                                </label>
+                            </div>
+                            <div className={styles.checkboxRow}>
+                                <label className={styles.checkboxLabel}>
+                                    <input
+                                        type="checkbox"
+                                        checked={downloadedTerms}
+                                        onChange={(event) => setDownloadedTerms(event.target.checked)}
+                                    />
+                                    <span>
+                                        I downloaded the Terms and two copies of the Right to Cancel notice and consent to receive
+                                        disclosures electronically.
+                                    </span>
+                                </label>
+                            </div>
+                            <div className={styles.checkboxRow}>
+                                <label className={styles.checkboxLabel}>
+                                    <input
+                                        type="checkbox"
+                                        checked={emergencyWaiver}
+                                        onChange={(event) => setEmergencyWaiver(event.target.checked)}
+                                    />
+                                    <span>
+                                        I request immediate emergency service and waive my three-day right to cancel as described
+                                        in the Terms (only if needed for safety/egress).
+                                    </span>
+                                </label>
+                            </div>
                             <a
                                 className={styles.primaryButton}
-                                href={mailtoLink || "#"}
-                                aria-disabled={!mailtoLink}
+                                href="#"
+                                aria-disabled={!canSubmit}
                                 onClick={(event) => {
-                                    if (!mailtoLink) {
-                                        event.preventDefault();
-                                    }
+                                    event.preventDefault();
+                                    handleRequest();
                                 }}
                             >
                                 Email request
                             </a>
-                            {!mailtoLink ? (
-                                <div className={styles.estimateError}>Name and address are required.</div>
+                            {!canSubmit ? (
+                                <div className={styles.estimateError}>Name, address, and required agreements are needed.</div>
                             ) : null}
+                            {requestStatus ? <div className={styles.estimateResult}>{requestStatus}</div> : null}
+                            {requestError ? <div className={styles.estimateError}>{requestError}</div> : null}
                         </div>
                         <div className={styles.formCard}>
                             <h3 className="title is-5">Quick contact</h3>
@@ -729,7 +835,9 @@ export default function Home() {
                             <div className={styles.policyNote}>
                                 Drive fee policy: Trips over 30 minutes one-way require a 50% drive-fee deposit. Trips over 60
                                 minutes one-way require 50% of the total (snow removal + drive fee) upfront. Deposits are
-                                non‑refundable if cancelled.
+                                non‑refundable if cancelled. A 10% convenience upcharge applies to requests within 3 business days.
+                                I may cancel or decline any
+                                request before work begins; if I cancel, you will not be charged.
                             </div>
                         </div>
                     </div>
@@ -742,6 +850,8 @@ export default function Home() {
                 </div>
                 <div>
                     <a className={styles.linkButton} href="/privacy">Privacy policy</a>
+                    <span className={styles.footerDivider}>•</span>
+                    <a className={styles.linkButton} href="/terms">Terms & conditions</a>
                 </div>
             </footer>
         </main>

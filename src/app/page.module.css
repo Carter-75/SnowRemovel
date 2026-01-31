@@ -72,8 +72,7 @@
     z-index: 0;
 }
 
-.hero::after {
-    content: "";
+.heroGlow {
     position: absolute;
     top: -120px;
     right: -120px;
@@ -357,6 +356,40 @@
     font-size: 0.95rem;
     color: #475569;
     line-height: 1.5;
+}
+
+.checkboxRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+    color: #475569;
+}
+
+.checkboxLabel {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+
+.checkboxLabel input {
+    margin-top: 0.2rem;
+}
+
+.checkboxLabel a {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+.downloadRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.footerDivider {
+    margin: 0 0.5rem;
+    color: #94a3b8;
 }
 
 .footer {

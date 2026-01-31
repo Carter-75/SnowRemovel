@@ -15,16 +15,20 @@ export default function PrivacyPage() {
           </div>
           <div className={styles.card}>
             <p className="has-text-grey">
-              This website collects only the information you submit through the quote form, such as your name,
-              email (optional), address, and details about the service you need. I use that information solely
-              to respond to your request and schedule snow removal service.
+              This website collects the information you submit through the quote form, including your name,
+              email (optional), address, timeframe, and service details. This information is used solely to
+              provide quotes, schedule snow removal, and communicate with you.
             </p>
             <ul className={styles.list}>
               <li>I do not sell your information.</li>
-              <li>I do not share your information with third parties except for email delivery.</li>
-              <li>I store quote requests in my email inbox to follow up with you.</li>
+              <li>I share information only with service providers needed to operate the website (e.g., hosting, email delivery, payments).</li>
+              <li>Quote requests are stored in my email inbox for follow‑up and record keeping.</li>
               <li>You can request deletion of your information by emailing me.</li>
             </ul>
+            <p className="has-text-grey">
+              By using this site, you consent to doing business electronically and to the use of electronic
+              records and signatures as allowed by Wisconsin Stat. 137.11.
+            </p>
             <p className="has-text-grey">
               If you have any questions, contact me at cartermoyer75@gmail.com.
             </p>
