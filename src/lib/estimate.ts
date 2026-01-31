@@ -19,6 +19,19 @@ const SERVICE_AREA_SQRT_FACTOR = envNumber(process.env.SNOW_SERVICE_AREA_SQRT_FA
 
 const metersToSquareFeet = (sqMeters: number) => sqMeters * 10.7639;
 
+const haversineMiles = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) => {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return 2 * earthRadiusMiles * Math.asin(Math.sqrt(h));
+};
+
 const fetchOrsRouteSummary = async (origin: { lat: number; lon: number }, destination: { lat: number; lon: number }) => {
   if (!ORS_API_KEY) {
     return { summary: null, status: "Missing ORS_API_KEY" };
@@ -221,7 +234,8 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
     }
 
     if (summary?.distance && summary?.duration) {
-      driveMiles = summary.distance / 1609.34;
+      const straightLineMiles = haversineMiles(origin, destination);
+      driveMiles = straightLineMiles;
       driveMinutes = summary.duration / 60;
       roundTripMiles = driveMiles * 2;
       roundTripMinutes = driveMinutes * 2;
