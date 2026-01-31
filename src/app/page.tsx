@@ -828,19 +828,21 @@ export default function Home() {
                                         </span>
                                     </label>
                                 </div>
-                                <div className={styles.checkboxRow}>
-                                    <label className={styles.checkboxLabel}>
-                                        <input
-                                            type="checkbox"
-                                            checked={emergencyWaiver}
-                                            onChange={(event) => setEmergencyWaiver(event.target.checked)}
-                                        />
-                                        <span>
-                                            I request immediate emergency service and waive my three-day right to cancel as described
-                                            in the Terms (only if needed for safety/egress).
-                                        </span>
-                                    </label>
-                                </div>
+                                {urgentService ? (
+                                    <div className={styles.checkboxRow}>
+                                        <label className={styles.checkboxLabel}>
+                                            <input
+                                                type="checkbox"
+                                                checked={emergencyWaiver}
+                                                onChange={(event) => setEmergencyWaiver(event.target.checked)}
+                                            />
+                                            <span>
+                                                I request immediate emergency service and waive my three-day right to cancel as described
+                                                in the Terms (only if needed for safety/egress).
+                                            </span>
+                                        </label>
+                                    </div>
+                                ) : null}
                                 <button
                                     className={styles.secondaryButton}
                                     type="button"
