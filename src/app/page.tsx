@@ -95,8 +95,7 @@ export default function Home() {
     const [discountSecondsLeft, setDiscountSecondsLeft] = useState(0);
     const [requestName, setRequestName] = useState("");
     const [requestEmail, setRequestEmail] = useState("");
-    const [requestDate, setRequestDate] = useState("");
-    const [requestTimeMinutes, setRequestTimeMinutes] = useState(480);
+    const [requestDateTime, setRequestDateTime] = useState("");
     const [requestDetails, setRequestDetails] = useState("");
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [downloadedTerms, setDownloadedTerms] = useState(false);
@@ -112,32 +111,13 @@ export default function Home() {
             .filter(Boolean)
             .join(", ");
 
-    const formatTime = (totalMinutes: number) => {
-        const hours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-        const period = hours >= 12 ? "PM" : "AM";
-        const displayHours = hours % 12 === 0 ? 12 : hours % 12;
-        return `${displayHours}:${String(minutes).padStart(2, "0")} ${period}`;
-    };
-
-    const buildTimeframe = () => {
-        if (!requestDate) {
-            return "";
-        }
-        return `${requestDate} at ${formatTime(requestTimeMinutes)}`;
-    };
+    const buildTimeframe = () => requestDateTime;
 
     const isUrgentRequest = () => {
-        if (!requestDate) {
+        if (!requestDateTime) {
             return false;
         }
-        const [year, month, day] = requestDate.split("-").map(Number);
-        if (!year || !month || !day) {
-            return false;
-        }
-        const hours = Math.floor(requestTimeMinutes / 60);
-        const minutes = requestTimeMinutes % 60;
-        const requestedAt = new Date(year, month - 1, day, hours, minutes, 0, 0);
+        const requestedAt = new Date(requestDateTime);
         if (Number.isNaN(requestedAt.getTime())) {
             return false;
         }
@@ -237,12 +217,12 @@ export default function Home() {
         return (
             Boolean(requestName.trim()) &&
             Boolean(buildFullAddress()) &&
-            Boolean(requestDate) &&
+            Boolean(requestDateTime) &&
             agreedToTerms &&
             downloadedTerms &&
             (!urgentService || emergencyWaiver)
         );
-    }, [requestName, streetAddress, unitAddress, cityAddress, stateAddress, zipAddress, requestDate, requestTimeMinutes, agreedToTerms, downloadedTerms, emergencyWaiver]);
+    }, [requestName, streetAddress, unitAddress, cityAddress, stateAddress, zipAddress, requestDateTime, agreedToTerms, downloadedTerms, emergencyWaiver]);
 
 
     const handlePayment = async () => {
@@ -699,36 +679,21 @@ export default function Home() {
                                     </div>
                                 </div>
                                 <div className="field">
-                                    <label className="label" htmlFor="request-date">Service date</label>
+                                    <label className="label" htmlFor="request-datetime">Service date & time</label>
                                     <div className="control">
                                         <input
                                             className="input"
-                                            id="request-date"
-                                            type="date"
-                                            value={requestDate}
-                                            min={new Date().toISOString().split("T")[0]}
+                                            id="request-datetime"
+                                            type="datetime-local"
+                                            value={requestDateTime}
+                                            min={new Date().toISOString().slice(0, 16)}
                                             max={new Date(new Date().setMonth(new Date().getMonth() + 3))
                                                 .toISOString()
-                                                .split("T")[0]}
-                                            onChange={(event) => setRequestDate(event.target.value)}
+                                                .slice(0, 16)}
+                                            step={300}
+                                            onChange={(event) => setRequestDateTime(event.target.value)}
                                         />
-                                    </div>
-                                </div>
-                                <div className="field">
-                                    <label className="label" htmlFor="request-time">Preferred time</label>
-                                    <div className="control">
-                                        <input
-                                            className={styles.timeSlider}
-                                            id="request-time"
-                                            type="range"
-                                            min={0}
-                                            max={1435}
-                                            step={5}
-                                            value={requestTimeMinutes}
-                                            onChange={(event) => setRequestTimeMinutes(Number(event.target.value))}
-                                        />
-                                        <div className={styles.timeValue}>{formatTime(requestTimeMinutes)}</div>
-                                        {requestDate && isUrgentRequest() ? (
+                                        {requestDateTime && isUrgentRequest() ? (
                                             <div className={styles.urgentNote}>
                                                 Rush service detected (within 3 days). A 10% convenience upcharge will apply.
                                             </div>

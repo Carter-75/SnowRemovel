@@ -354,6 +354,10 @@
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 12px;
     padding: 0.85rem 1rem;
+    font-size: 0.95rem;
+    color: #475569;
+    line-height: 1.5;
+}
 
 .addressRow {
     display: grid;
@@ -361,24 +365,11 @@
     gap: 1rem;
 }
 
-.timeSlider {
-    width: 100%;
-}
-
-.timeValue {
-    margin-top: 0.5rem;
-    font-weight: 600;
-}
-
 .urgentNote {
     margin-top: 0.4rem;
     font-size: 0.9rem;
     color: #b6462d;
     font-weight: 600;
-}
-    font-size: 0.95rem;
-    color: #475569;
-    line-height: 1.5;
 }
 
 .checkboxRow {
