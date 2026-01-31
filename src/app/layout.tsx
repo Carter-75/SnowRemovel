@@ -1,5 +1,5 @@
-import "./globals.css";
 import "bulma/css/bulma.min.css";
+import "./globals.css";
 
 import { headers } from "next/headers";
 import Script from "next/script";
