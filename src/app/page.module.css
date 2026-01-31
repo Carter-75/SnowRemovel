@@ -354,6 +354,21 @@
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 12px;
     padding: 0.85rem 1rem;
+
+.addressRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+}
+
+.timeSlider {
+    width: 100%;
+}
+
+.timeValue {
+    margin-top: 0.5rem;
+    font-weight: 600;
+}
     font-size: 0.95rem;
     color: #475569;
     line-height: 1.5;

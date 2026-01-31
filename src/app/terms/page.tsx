@@ -43,6 +43,11 @@ export default function TermsPage() {
               property to prevent city fines or for safety/egress), you expressly waive your three‑day right
               to cancel this transaction to allow for immediate performance of the work.
             </p>
+            <p className="has-text-grey">
+              Access policy: If we arrive and are unable to access the property after reasonable attempts to
+              contact you by text, phone, and email, and the one‑way travel time exceeds 30 minutes, the
+              service will be treated as completed and payment is non‑refundable.
+            </p>
 
             <h2 className="title is-5">CUSTOMER’S RIGHT TO CANCEL</h2>
             <p className="has-text-grey">

@@ -70,7 +70,11 @@ const FAQS = [
 ];
 
 export default function Home() {
-    const [address, setAddress] = useState("");
+    const [streetAddress, setStreetAddress] = useState("");
+    const [unitAddress, setUnitAddress] = useState("");
+    const [cityAddress, setCityAddress] = useState("");
+    const [stateAddress, setStateAddress] = useState("");
+    const [zipAddress, setZipAddress] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [estimate, setEstimate] = useState<null | {
@@ -92,8 +96,8 @@ export default function Home() {
     const [urgentService, setUrgentService] = useState(false);
     const [requestName, setRequestName] = useState("");
     const [requestEmail, setRequestEmail] = useState("");
-    const [requestAddress, setRequestAddress] = useState("");
-    const [requestTimeframe, setRequestTimeframe] = useState("");
+    const [requestDate, setRequestDate] = useState("");
+    const [requestTimeMinutes, setRequestTimeMinutes] = useState(480);
     const [requestDetails, setRequestDetails] = useState("");
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [downloadedTerms, setDownloadedTerms] = useState(false);
@@ -103,9 +107,31 @@ export default function Home() {
     const heroImageRef = useRef<HTMLDivElement | null>(null);
     const snowSceneRef = useRef<HTMLDivElement | null>(null);
 
+    const buildFullAddress = () =>
+        [streetAddress, unitAddress, cityAddress, stateAddress, zipAddress]
+            .map((value) => value.trim())
+            .filter(Boolean)
+            .join(", ");
+
+    const formatTime = (totalMinutes: number) => {
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const period = hours >= 12 ? "PM" : "AM";
+        const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+        return `${displayHours}:${String(minutes).padStart(2, "0")} ${period}`;
+    };
+
+    const buildTimeframe = () => {
+        if (!requestDate) {
+            return "";
+        }
+        return `${requestDate} at ${formatTime(requestTimeMinutes)}`;
+    };
+
     const handleEstimate = async () => {
-        if (!address.trim()) {
-            setError("Enter an address to estimate pricing.");
+        const fullAddress = buildFullAddress();
+        if (!fullAddress) {
+            setError("Enter a full address to estimate pricing.");
             return;
         }
         setIsLoading(true);
@@ -115,7 +141,7 @@ export default function Home() {
             const response = await fetch("/api/estimate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ address: address.trim(), urgentService }),
+                body: JSON.stringify({ address: fullAddress, urgentService }),
             });
             const data = await response.json();
             if (!response.ok) {
@@ -136,7 +162,6 @@ export default function Home() {
                 roundTripMinutes: data.roundTripMinutes,
                 timestamp: data.timestamp,
             });
-            setRequestAddress(address.trim());
         } catch (err) {
             const message = err instanceof Error ? err.message : "Unable to estimate price.";
             setError(message);
@@ -192,12 +217,13 @@ export default function Home() {
     const canSubmit = useMemo(() => {
         return (
             Boolean(requestName.trim()) &&
-            Boolean(requestAddress.trim()) &&
+            Boolean(buildFullAddress()) &&
+            Boolean(requestDate) &&
             agreedToTerms &&
             downloadedTerms &&
             (!urgentService || emergencyWaiver)
         );
-    }, [requestName, requestAddress, agreedToTerms, downloadedTerms, urgentService, emergencyWaiver]);
+    }, [requestName, streetAddress, unitAddress, cityAddress, stateAddress, zipAddress, requestDate, agreedToTerms, downloadedTerms, urgentService, emergencyWaiver]);
 
 
     const handlePayment = async () => {
@@ -213,8 +239,8 @@ export default function Home() {
                 body: JSON.stringify({
                     name: requestName.trim() || "Customer",
                     email: requestEmail.trim(),
-                    address: requestAddress.trim() || address.trim(),
-                    timeframe: requestTimeframe.trim(),
+                    address: buildFullAddress(),
+                    timeframe: buildTimeframe(),
                     urgentService,
                     estimateTimestamp: estimate.timestamp,
                 }),
@@ -515,16 +541,70 @@ export default function Home() {
                                 Enter your address for a quick estimate based on public parcel data for anywhere in Wisconsin.
                         </p>
                         <div className="field">
-                            <label className="label" htmlFor="estimate-address">Address</label>
+                            <label className="label" htmlFor="estimate-street">Street address</label>
                             <div className="control">
                                 <input
                                     className="input"
-                                    id="estimate-address"
-                                    placeholder="123 Main St, La Crosse, WI"
+                                    id="estimate-street"
+                                    placeholder="123 Main St"
                                     type="text"
-                                    value={address}
-                                    onChange={(event) => setAddress(event.target.value)}
+                                    value={streetAddress}
+                                    onChange={(event) => setStreetAddress(event.target.value)}
                                 />
+                            </div>
+                        </div>
+                        <div className="field">
+                            <label className="label" htmlFor="estimate-unit">Apt/Suite (optional)</label>
+                            <div className="control">
+                                <input
+                                    className="input"
+                                    id="estimate-unit"
+                                    placeholder="Apt 2B"
+                                    type="text"
+                                    value={unitAddress}
+                                    onChange={(event) => setUnitAddress(event.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className={styles.addressRow}>
+                            <div className="field">
+                                <label className="label" htmlFor="estimate-city">City</label>
+                                <div className="control">
+                                    <input
+                                        className="input"
+                                        id="estimate-city"
+                                        placeholder="La Crosse"
+                                        type="text"
+                                        value={cityAddress}
+                                        onChange={(event) => setCityAddress(event.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="field">
+                                <label className="label" htmlFor="estimate-state">State</label>
+                                <div className="control">
+                                    <input
+                                        className="input"
+                                        id="estimate-state"
+                                        placeholder="WI"
+                                        type="text"
+                                        value={stateAddress}
+                                        onChange={(event) => setStateAddress(event.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="field">
+                                <label className="label" htmlFor="estimate-zip">ZIP</label>
+                                <div className="control">
+                                    <input
+                                        className="input"
+                                        id="estimate-zip"
+                                        placeholder="54603"
+                                        type="text"
+                                        value={zipAddress}
+                                        onChange={(event) => setZipAddress(event.target.value)}
+                                    />
+                                </div>
                             </div>
                         </div>
                             <div className={styles.checkboxRow}>
@@ -609,37 +689,35 @@ export default function Home() {
                                     </div>
                                 </div>
                                 <div className="field">
-                                    <label className="label" htmlFor="address">Address</label>
+                                    <label className="label" htmlFor="request-date">Service date</label>
                                     <div className="control">
                                         <input
                                             className="input"
-                                            id="address"
-                                            placeholder="Street address"
-                                            type="text"
-                                            value={requestAddress}
-                                            onChange={(event) => setRequestAddress(event.target.value)}
+                                            id="request-date"
+                                            type="date"
+                                            value={requestDate}
+                                            min={new Date().toISOString().split("T")[0]}
+                                            max={new Date(new Date().setMonth(new Date().getMonth() + 3))
+                                                .toISOString()
+                                                .split("T")[0]}
+                                            onChange={(event) => setRequestDate(event.target.value)}
                                         />
                                     </div>
                                 </div>
                                 <div className="field">
-                                    <label className="label" htmlFor="timeframe">Timeframe</label>
+                                    <label className="label" htmlFor="request-time">Preferred time</label>
                                     <div className="control">
-                                        <div className="select is-fullwidth">
-                                            <select
-                                                id="timeframe"
-                                                value={requestTimeframe}
-                                                onChange={(event) => setRequestTimeframe(event.target.value)}
-                                            >
-                                                <option value="">Select timeframe</option>
-                                                <option value="Today">Today</option>
-                                                <option value="Tomorrow morning">Tomorrow morning</option>
-                                                <option value="Tomorrow afternoon">Tomorrow afternoon</option>
-                                                <option value="Tomorrow evening">Tomorrow evening</option>
-                                                <option value="This weekend">This weekend</option>
-                                                <option value="Next week">Next week</option>
-                                                <option value="Flexible">Flexible</option>
-                                            </select>
-                                        </div>
+                                        <input
+                                            className={styles.timeSlider}
+                                            id="request-time"
+                                            type="range"
+                                            min={0}
+                                            max={1435}
+                                            step={5}
+                                            value={requestTimeMinutes}
+                                            onChange={(event) => setRequestTimeMinutes(Number(event.target.value))}
+                                        />
+                                        <div className={styles.timeValue}>{formatTime(requestTimeMinutes)}</div>
                                     </div>
                                 </div>
                                 <div className="field">
