@@ -54,9 +54,10 @@ const resolveUrgentFromTimeframe = (timeframe: string, timezoneOffsetMinutes?: n
   if (!parts) {
     return false;
   }
-  const offsetMinutes = Number.isFinite(timezoneOffsetMinutes)
-    ? Math.max(-840, Math.min(840, timezoneOffsetMinutes))
-    : 0;
+  const offsetMinutes =
+    typeof timezoneOffsetMinutes === "number" && Number.isFinite(timezoneOffsetMinutes)
+      ? Math.max(-840, Math.min(840, timezoneOffsetMinutes))
+      : 0;
   const utcMillis =
     Date.UTC(parts.year, parts.month - 1, parts.day, parts.hours, parts.minutes, 0, 0) +
     offsetMinutes * 60 * 1000;
