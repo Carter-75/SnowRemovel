@@ -5,8 +5,9 @@ import Script from "next/script";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Template App",
-  description: "A project template",
+  title: "Carter Moyer Snow Removal",
+  description:
+    "Reliable, shovel-based snow removal for driveways and walkways. Local college student offering fast, friendly service.",
 };
 
 export default function RootLayout({
@@ -32,4 +33,5 @@ export default function RootLayout({
     </html>
   );
 }
+
 

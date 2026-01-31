@@ -1,5 +1,5 @@
 {
-  "name": "next-template",
+  "name": "SnowRemovel",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Template repository for Next.js projects",
+  "description": "A project named SnowRemovel",
   "dependencies": {
     "react": "18",
     "react-dom": "18",

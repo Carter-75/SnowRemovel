@@ -1,4 +1,4 @@
-# __PROJECT_NAME__
+# SnowRemovel
 
 This is a template repository for a Next.js project.
 
@@ -25,3 +25,4 @@ npm run dev
 ```
 
 This will start the Next.js development server with Turbopack enabled for faster performance. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
