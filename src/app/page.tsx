@@ -306,16 +306,15 @@ export default function Home() {
             return;
         }
 
-        if (container.clientWidth === 0) {
+        if (window.innerWidth === 0) {
             return;
         }
 
         const engine = Matter.Engine.create();
         engine.enableSleeping = true;
         engine.gravity.y = 0.22;
-        const host = container.parentElement ?? container;
-        const initialWidth = host.clientWidth;
-        const initialHeight = Math.max(host.clientHeight, 220);
+        const initialWidth = window.innerWidth;
+        const initialHeight = Math.max(window.innerHeight, 220);
         const render = Matter.Render.create({
             element: container,
             engine,
@@ -398,8 +397,8 @@ export default function Home() {
         Matter.Render.run(render);
 
         const handleResize = () => {
-            const width = host.clientWidth;
-            const height = Math.max(host.clientHeight, 220);
+            const width = window.innerWidth;
+            const height = Math.max(window.innerHeight, 220);
             currentWidth = width;
             currentHeight = height;
             render.canvas.width = width;
