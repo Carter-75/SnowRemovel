@@ -172,21 +172,24 @@
 .heroImageWrap {
     display: grid;
     gap: 1.5rem;
+    justify-items: center;
 }
 
 .heroImage {
-    border-radius: 24px;
+    border-radius: 999px;
     overflow: hidden;
     box-shadow: var(--shadow);
     background: #e2e8f0;
     position: relative;
-    min-height: clamp(260px, 40vw, 360px);
+    width: clamp(180px, 28vw, 240px);
+    height: clamp(180px, 28vw, 240px);
     border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .heroPhoto {
     object-fit: cover;
     filter: saturate(1.05) contrast(1.02);
+    object-position: center 20%;
 }
 
 .trustCard {
@@ -277,13 +280,16 @@
     overflow: hidden;
     box-shadow: var(--shadow);
     position: relative;
-    min-height: clamp(280px, 45vw, 380px);
+    width: min(360px, 100%);
+    aspect-ratio: 4 / 5;
     border: 1px solid rgba(148, 163, 184, 0.2);
+    justify-self: center;
 }
 
 .portraitPhoto {
     object-fit: cover;
     filter: saturate(1.05) contrast(1.02);
+    object-position: center 15%;
 }
 
 .list {
