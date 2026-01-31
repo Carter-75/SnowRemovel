@@ -1,21 +1,26 @@
-const BASE_RATE_PER_SQFT = Number.parseFloat(process.env.SNOW_BASE_RATE_PER_SQFT ?? "0.06");
-const RATE_PER_1000_SQFT = Number.parseFloat(process.env.SNOW_RATE_PER_1000_SQFT ?? "0.02");
-const SHORT_JOB_MAX_SQFT = Number.parseFloat(process.env.SNOW_SHORT_JOB_MAX_SQFT ?? "450");
+const envNumber = (value: string | undefined, fallback: number) => {
+  const parsed = Number.parseFloat(value ?? "");
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const BASE_RATE_PER_SQFT = envNumber(process.env.SNOW_BASE_RATE_PER_SQFT, 0.06);
+const RATE_PER_1000_SQFT = envNumber(process.env.SNOW_RATE_PER_1000_SQFT, 0.02);
+const SHORT_JOB_MAX_SQFT = envNumber(process.env.SNOW_SHORT_JOB_MAX_SQFT, 450);
 const PARCEL_LAYER_URL =
   process.env.PARCEL_LAYER_URL ??
   "https://services3.arcgis.com/n6uYoouQZW75n5WI/arcgis/rest/services/Wisconsin_Statewide_Parcels/FeatureServer/0";
 const ORS_API_KEY = process.env.ORS_API_KEY ?? "";
 const DRIVE_ORIGIN_ADDRESS =
   process.env.DRIVE_ORIGIN_ADDRESS ?? "401 Gillette St, La Crosse, WI 54603";
-const DRIVE_MPG = Number.parseFloat(process.env.DRIVE_MPG ?? "30");
-const DRIVE_GAS_PRICE = Number.parseFloat(process.env.DRIVE_GAS_PRICE ?? "3.5");
-const DRIVE_WEAR_RATE = Number.parseFloat(process.env.DRIVE_WEAR_RATE ?? "0.1");
-const DRIVE_PER_MILE_RATE = Number.parseFloat(process.env.DRIVE_PER_MILE_RATE ?? "1.5");
-const DRIVE_HOURLY_RATE = Number.parseFloat(process.env.DRIVE_HOURLY_RATE ?? "15");
-const DRIVE_FREE_MINUTES = Number.parseFloat(process.env.DRIVE_FREE_MINUTES ?? "15");
-const DRIVE_HALF_UPFRONT_MINUTES = Number.parseFloat(process.env.DRIVE_HALF_UPFRONT_MINUTES ?? "30");
-const DRIVE_FULL_UPFRONT_MINUTES = Number.parseFloat(process.env.DRIVE_FULL_UPFRONT_MINUTES ?? "60");
-const SERVICE_AREA_SQRT_FACTOR = Number.parseFloat(process.env.SNOW_SERVICE_AREA_SQRT_FACTOR ?? "5");
+const DRIVE_MPG = envNumber(process.env.DRIVE_MPG, 30);
+const DRIVE_GAS_PRICE = envNumber(process.env.DRIVE_GAS_PRICE, 3.5);
+const DRIVE_WEAR_RATE = envNumber(process.env.DRIVE_WEAR_RATE, 0.1);
+const DRIVE_PER_MILE_RATE = envNumber(process.env.DRIVE_PER_MILE_RATE, 1.5);
+const DRIVE_HOURLY_RATE = envNumber(process.env.DRIVE_HOURLY_RATE, 15);
+const DRIVE_FREE_MINUTES = envNumber(process.env.DRIVE_FREE_MINUTES, 15);
+const DRIVE_HALF_UPFRONT_MINUTES = envNumber(process.env.DRIVE_HALF_UPFRONT_MINUTES, 30);
+const DRIVE_FULL_UPFRONT_MINUTES = envNumber(process.env.DRIVE_FULL_UPFRONT_MINUTES, 60);
+const SERVICE_AREA_SQRT_FACTOR = envNumber(process.env.SNOW_SERVICE_AREA_SQRT_FACTOR, 5);
 
 const metersToSquareFeet = (sqMeters: number) => sqMeters * 10.7639;
 

@@ -604,14 +604,22 @@ export default function Home() {
                                 <div className="field">
                                     <label className="label" htmlFor="timeframe">Timeframe</label>
                                     <div className="control">
-                                        <input
-                                            className="input"
-                                            id="timeframe"
-                                            placeholder="Today, tomorrow morning, this weekend"
-                                            type="text"
-                                            value={requestTimeframe}
-                                            onChange={(event) => setRequestTimeframe(event.target.value)}
-                                        />
+                                        <div className="select is-fullwidth">
+                                            <select
+                                                id="timeframe"
+                                                value={requestTimeframe}
+                                                onChange={(event) => setRequestTimeframe(event.target.value)}
+                                            >
+                                                <option value="">Select timeframe</option>
+                                                <option value="Today">Today</option>
+                                                <option value="Tomorrow morning">Tomorrow morning</option>
+                                                <option value="Tomorrow afternoon">Tomorrow afternoon</option>
+                                                <option value="Tomorrow evening">Tomorrow evening</option>
+                                                <option value="This weekend">This weekend</option>
+                                                <option value="Next week">Next week</option>
+                                                <option value="Flexible">Flexible</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="field">
