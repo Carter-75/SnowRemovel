@@ -139,6 +139,7 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
   let roundTripMiles = 0;
   let roundTripMinutes = 0;
   let upfrontFee = 0;
+  let driveFeeStatus: string | null = null;
   if (ORS_API_KEY) {
     const origin = await geocodeAddress(DRIVE_ORIGIN_ADDRESS);
     if (origin) {
@@ -176,9 +177,17 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
           } else if (driveMinutes >= DRIVE_HALF_UPFRONT_MINUTES) {
             upfrontFee = driveFee / 2;
           }
+        } else {
+          driveFeeStatus = "Routing data missing; travel fee not applied.";
         }
+      } else {
+        driveFeeStatus = "Routing request failed; travel fee not applied.";
       }
+    } else {
+      driveFeeStatus = "Origin address could not be geocoded; travel fee not applied.";
     }
+  } else {
+    driveFeeStatus = "Missing ORS_API_KEY; travel fee not applied.";
   }
 
   return {
@@ -195,5 +204,6 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
     roundTripMiles: Number(roundTripMiles.toFixed(2)),
     roundTripMinutes: Number(roundTripMinutes.toFixed(1)),
     upfrontFee: Number(upfrontFee.toFixed(2)),
+    driveFeeStatus,
   };
 };

@@ -87,6 +87,7 @@ export default function Home() {
         roundTripMiles: number;
         roundTripMinutes: number;
         upfrontFee: number;
+        driveFeeStatus: string | null;
         timestamp: number;
     }>(null);
     const [discountSecondsLeft, setDiscountSecondsLeft] = useState(0);
@@ -136,6 +137,7 @@ export default function Home() {
                 roundTripMiles: data.roundTripMiles,
                 roundTripMinutes: data.roundTripMinutes,
                 upfrontFee: data.upfrontFee,
+                driveFeeStatus: data.driveFeeStatus ?? null,
                 timestamp: data.timestamp,
             });
             setRequestAddress(address.trim());
@@ -571,6 +573,11 @@ export default function Home() {
                                     <div>
                                         Travel fee: ${estimate.driveFee.toFixed(2)}
                                     </div>
+                                    {estimate.driveFeeStatus ? (
+                                        <div>
+                                            Note: {estimate.driveFeeStatus}
+                                        </div>
+                                    ) : null}
                                 </details>
                             </div>
                         ) : null}
