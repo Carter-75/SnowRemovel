@@ -33,3 +33,59 @@ img {
   max-width: 100%;
   display: block;
 }
+
+.field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.label {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.control {
+  display: grid;
+}
+
+.input,
+.textarea,
+select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  background: #ffffff;
+  color: var(--ink);
+  padding: 0.7rem 0.85rem;
+  font-size: 1rem;
+  line-height: 1.4;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: #94a3b8;
+}
+
+.input:focus,
+.textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+input[type="datetime-local"] {
+  color-scheme: light;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  filter: none;
+  cursor: pointer;
+}
