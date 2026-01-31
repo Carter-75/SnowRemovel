@@ -3,11 +3,10 @@ import { NextResponse } from "next/server";
 import { computeEstimate } from "@/lib/estimate";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
-const PARCEL_LAYER_URL = process.env.PARCEL_LAYER_URL ?? "";
-
 export async function POST(request: Request) {
+  const parcelLayerUrl = process.env.PARCEL_LAYER_URL ?? "";
   const clientIp = getClientIp(request);
-  const rateLimit = checkRateLimit(`estimate:${clientIp}`, 30, 60_000);
+  const rateLimit = await checkRateLimit(`estimate:${clientIp}`, 30, 60_000);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again shortly." },
@@ -15,7 +14,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!PARCEL_LAYER_URL) {
+  if (!parcelLayerUrl) {
     return NextResponse.json(
       { error: "Parcel data endpoint is not configured." },
       { status: 500 }
@@ -23,10 +22,14 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json()) as { address?: string; urgentService?: boolean };
-  if (!body.address) {
+  const address = body.address?.trim() ?? "";
+  if (!address) {
     return NextResponse.json({ error: "Address is required." }, { status: 400 });
   }
-  const estimate = await computeEstimate(body.address, Boolean(body.urgentService));
+  if (address.length > 200) {
+    return NextResponse.json({ error: "Address is too long." }, { status: 400 });
+  }
+  const estimate = await computeEstimate(address, Boolean(body.urgentService));
   if (!estimate) {
     return NextResponse.json({ error: "No parcel geometry found for that address." }, { status: 404 });
   }

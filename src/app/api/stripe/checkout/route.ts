@@ -5,8 +5,22 @@ import { computeEstimate } from "@/lib/estimate";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+
+const normalizeText = (value: string | undefined, maxLength: number) =>
+  (value ?? "").trim().slice(0, maxLength);
+
+const isAllowedBaseUrl = (value: string) => {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === "https:") {
+      return true;
+    }
+    return parsed.hostname === "localhost";
+  } catch {
+    return false;
+  }
+};
 
 const calculateDiscountPercent = (timestamp: number) => {
   const elapsedSeconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -21,7 +35,7 @@ const calculateDiscountPercent = (timestamp: number) => {
 
 export async function POST(request: Request) {
   const clientIp = getClientIp(request);
-  const rateLimit = checkRateLimit(`checkout:${clientIp}`, 10, 60_000);
+  const rateLimit = await checkRateLimit(`checkout:${clientIp}`, 10, 60_000);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again shortly." },
@@ -29,7 +43,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!STRIPE_SECRET_KEY || !BASE_URL) {
+  if (!STRIPE_SECRET_KEY || !BASE_URL || !isAllowedBaseUrl(BASE_URL)) {
     return NextResponse.json({ error: "Stripe is not configured." }, { status: 500 });
   }
 
@@ -42,11 +56,16 @@ export async function POST(request: Request) {
     estimateTimestamp?: number;
   };
 
-  if (!body.name || !body.address) {
+  const name = normalizeText(body.name, 120);
+  const address = normalizeText(body.address, 200);
+  const timeframe = normalizeText(body.timeframe, 200);
+  const email = normalizeText(body.email, 254);
+
+  if (!name || !address) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
   }
 
-  const estimate = await computeEstimate(body.address, Boolean(body.urgentService));
+  const estimate = await computeEstimate(address, Boolean(body.urgentService));
   if (!estimate) {
     return NextResponse.json({ error: "Unable to compute estimate." }, { status: 400 });
   }
@@ -66,14 +85,14 @@ export async function POST(request: Request) {
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
-    customer_email: body.email || undefined,
+    customer_email: email || undefined,
     line_items: [
       {
         price_data: {
           currency: "usd",
           product_data: {
             name: "Snow removal service",
-            description: `Snow removal for ${body.address}`,
+            description: `Snow removal for ${address}`,
           },
           unit_amount: amountCents,
         },
@@ -83,9 +102,9 @@ export async function POST(request: Request) {
     success_url: `${BASE_URL}/?payment=success`,
     cancel_url: `${BASE_URL}/?payment=cancel`,
     metadata: {
-      name: body.name,
-      address: body.address,
-      timeframe: body.timeframe ?? "",
+      name,
+      address,
+      timeframe,
       discountPercent: discountPercent.toFixed(2),
       discountAmount: discountAmount.toFixed(2),
       basePrice: estimate.basePrice.toFixed(2),
