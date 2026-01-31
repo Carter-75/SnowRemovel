@@ -242,6 +242,8 @@ export default function Home() {
         return Number(Math.max(0, 10 - ((elapsed - 300) / 300) * 10).toFixed(2));
     }, [discountSecondsLeft, estimate]);
 
+    const urgentService = useMemo(() => isUrgentRequest(requestDateTime), [requestDateTime]);
+
     const effectiveUpcharge = useMemo(() => {
         if (!estimate) {
             return 0;
@@ -274,8 +276,6 @@ export default function Home() {
         const base = discountedPrice ?? effectiveSubtotal ?? estimate.price;
         return Number((base + estimate.driveFee).toFixed(2));
     }, [estimate, discountedPrice, effectiveSubtotal]);
-
-    const urgentService = useMemo(() => isUrgentRequest(requestDateTime), [requestDateTime]);
 
     const canSubmit = useMemo(() => {
         return (
