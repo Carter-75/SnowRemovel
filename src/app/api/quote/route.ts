@@ -44,7 +44,6 @@ const normalizeEstimate = (estimate?: EstimatePayload | null): EstimatePayload |
     driveMinutes: toNumber(estimate.driveMinutes),
     roundTripMiles: toNumber(estimate.roundTripMiles),
     roundTripMinutes: toNumber(estimate.roundTripMinutes),
-    upfrontFee: toNumber(estimate.upfrontFee),
     timestamp: toNumber(estimate.timestamp),
   };
 };
@@ -59,7 +58,6 @@ type EstimatePayload = {
   driveMinutes: number;
   roundTripMiles: number;
   roundTripMinutes: number;
-  upfrontFee: number;
   timestamp: number;
 };
 
@@ -140,7 +138,6 @@ export async function POST(request: Request) {
       <p><strong>Round trip:</strong> ${estimate.roundTripMiles.toFixed(2)} mi, ${estimate.roundTripMinutes.toFixed(
         0
           )} min</p>
-      <p><strong>Upfront due:</strong> $${estimate.upfrontFee.toFixed(2)}</p>
       <p><strong>Discount:</strong> ${discountPercent}%</p>
       <p><strong>Final price:</strong> $${totalWithDrive?.toFixed(2) ?? estimate.price.toFixed(2)}</p>
       `

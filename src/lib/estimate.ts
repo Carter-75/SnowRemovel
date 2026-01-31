@@ -12,14 +12,9 @@ const PARCEL_LAYER_URL =
 const ORS_API_KEY = process.env.ORS_API_KEY ?? "";
 const DRIVE_ORIGIN_ADDRESS =
   process.env.DRIVE_ORIGIN_ADDRESS ?? "401 Gillette St, La Crosse, WI 54603";
-const DRIVE_MPG = envNumber(process.env.DRIVE_MPG, 30);
-const DRIVE_GAS_PRICE = envNumber(process.env.DRIVE_GAS_PRICE, 3.5);
-const DRIVE_WEAR_RATE = envNumber(process.env.DRIVE_WEAR_RATE, 0.1);
 const DRIVE_PER_MILE_RATE = envNumber(process.env.DRIVE_PER_MILE_RATE, 1.5);
 const DRIVE_HOURLY_RATE = envNumber(process.env.DRIVE_HOURLY_RATE, 15);
 const DRIVE_FREE_MINUTES = envNumber(process.env.DRIVE_FREE_MINUTES, 15);
-const DRIVE_HALF_UPFRONT_MINUTES = envNumber(process.env.DRIVE_HALF_UPFRONT_MINUTES, 30);
-const DRIVE_FULL_UPFRONT_MINUTES = envNumber(process.env.DRIVE_FULL_UPFRONT_MINUTES, 60);
 const SERVICE_AREA_SQRT_FACTOR = envNumber(process.env.SNOW_SERVICE_AREA_SQRT_FACTOR, 5);
 
 const metersToSquareFeet = (sqMeters: number) => sqMeters * 10.7639;
@@ -213,21 +208,16 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
   let driveMinutes = 0;
   let roundTripMiles = 0;
   let roundTripMinutes = 0;
-  let upfrontFee = 0;
-  let driveFeeStatus: string | null = null;
   const origin = await geocodeAddress(DRIVE_ORIGIN_ADDRESS);
   if (origin) {
     let summary = null as null | { distance?: number; duration?: number };
-    let status = "";
 
     const orsResult = await fetchOrsRouteSummary(origin, destination);
     summary = orsResult.summary;
-    status = orsResult.status;
 
     if (!summary) {
       const osrmResult = await fetchOsrmRouteSummary(origin, destination);
       summary = osrmResult.summary;
-      status = osrmResult.status === "OK" ? "OSRM fallback used" : `ORS failed (${status}); ${osrmResult.status}`;
     }
 
     if (summary?.distance && summary?.duration) {
@@ -236,24 +226,11 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
       roundTripMiles = driveMiles * 2;
       roundTripMinutes = driveMinutes * 2;
       if (driveMinutes > DRIVE_FREE_MINUTES) {
-        const gasPerMile = DRIVE_GAS_PRICE / DRIVE_MPG;
-        const perMileCost = Math.max(DRIVE_PER_MILE_RATE, gasPerMile + DRIVE_WEAR_RATE);
-        const oneWayCost = driveMiles * perMileCost;
-        const roundTripHours = (summary.duration * 2) / 3600;
-        const timePay = roundTripHours * DRIVE_HOURLY_RATE;
-        driveFee = Math.max(oneWayCost * 1.5, timePay);
+        const mileageFee = driveMiles * DRIVE_PER_MILE_RATE;
+        const timeFee = (roundTripMinutes * DRIVE_HOURLY_RATE) / 60;
+        driveFee = Math.max(mileageFee, timeFee);
       }
-      if (driveMinutes >= DRIVE_FULL_UPFRONT_MINUTES) {
-        upfrontFee = (price + driveFee) / 2;
-      } else if (driveMinutes >= DRIVE_HALF_UPFRONT_MINUTES) {
-        upfrontFee = driveFee / 2;
-      }
-      driveFeeStatus = status !== "OK" ? status : null;
-    } else {
-      driveFeeStatus = `Routing data missing (${status}); travel fee not applied.`;
     }
-  } else {
-    driveFeeStatus = "Origin address could not be geocoded; travel fee not applied.";
   }
 
   return {
@@ -269,7 +246,5 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
     driveMinutes: Number(driveMinutes.toFixed(1)),
     roundTripMiles: Number(roundTripMiles.toFixed(2)),
     roundTripMinutes: Number(roundTripMinutes.toFixed(1)),
-    upfrontFee: Number(upfrontFee.toFixed(2)),
-    driveFeeStatus,
   };
 };

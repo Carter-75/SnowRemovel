@@ -86,8 +86,6 @@ export default function Home() {
         driveMinutes: number;
         roundTripMiles: number;
         roundTripMinutes: number;
-        upfrontFee: number;
-        driveFeeStatus: string | null;
         timestamp: number;
     }>(null);
     const [discountSecondsLeft, setDiscountSecondsLeft] = useState(0);
@@ -136,8 +134,6 @@ export default function Home() {
                 driveMinutes: data.driveMinutes,
                 roundTripMiles: data.roundTripMiles,
                 roundTripMinutes: data.roundTripMinutes,
-                upfrontFee: data.upfrontFee,
-                driveFeeStatus: data.driveFeeStatus ?? null,
                 timestamp: data.timestamp,
             });
             setRequestAddress(address.trim());
@@ -575,11 +571,6 @@ export default function Home() {
                                     <div>
                                         Travel fee: ${estimate.driveFee.toFixed(2)}
                                     </div>
-                                    {estimate.driveFeeStatus ? (
-                                        <div>
-                                            Note: {estimate.driveFeeStatus}
-                                        </div>
-                                    ) : null}
                                 </details>
                             </div>
                         ) : null}
@@ -826,10 +817,11 @@ export default function Home() {
                                 <strong>Service area:</strong> <span className="has-text-grey">Local neighborhoods within 15 miles</span>
                             </div>
                             <div className={styles.policyNote}>
-                                Drive fee policy: Trips over 30 minutes one-way require a 50% drive-fee deposit. Trips over 60
-                                minutes one-way require 50% of the total (snow removal + drive fee) upfront. Deposits are
-                                non‑refundable if cancelled. A 10% convenience upcharge applies to requests within 3 business days.
-                                I may cancel or decline any request before work begins; if I cancel, you will not be charged.
+                                Drive fee policy: No travel fee applies when one‑way travel time is 15 minutes or less. When
+                                one‑way travel time exceeds 15 minutes, the travel fee is the higher of round‑trip time × $15/hour
+                                or one‑way miles × $1.50 per mile. A 10% convenience upcharge applies to requests within
+                                3 business days. I may cancel or decline any request before work begins; if I cancel, you will be
+                                refunded in full.
                             </div>
                         </div>
                     </div>

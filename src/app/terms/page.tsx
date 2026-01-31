@@ -16,13 +16,15 @@ export default function TermsPage() {
           <div className={styles.card}>
             <h2 className="title is-5">Payment & Drive Fee Policy</h2>
             <ul className={styles.list}>
-              <li>Under 30 minutes one-way: Full payment is required upfront. No drive fee if under 15 minutes.</li>
-              <li>30–59 minutes one-way: 50% of the drive fee is required upfront and is non‑refundable if cancelled.</li>
-              <li>60+ minutes one-way: 50% of the total (snow removal + drive fee) is required upfront and is non‑refundable if cancelled.</li>
+              <li>No travel fee applies when one‑way travel time is 15 minutes or less.</li>
+              <li>
+                When one‑way travel time exceeds 15 minutes, the travel fee is the higher of:
+                (a) round‑trip time × $15/hour, or (b) one‑way miles × $1.50 per mile.
+              </li>
             </ul>
             <p className="has-text-grey">
-              Payment is required before dispatch. Service will not begin and no travel will occur until required
-              payment or deposit has been received.
+              Payment is required before dispatch. Service will not begin and no travel will occur until payment
+              has been received.
             </p>
             <p className="has-text-grey">
               Snow placement: Snow will be moved onto the customer’s yard or designated area. Snow is not pushed
@@ -59,7 +61,7 @@ export default function TermsPage() {
             <p className="has-text-grey">
               Carter Moyer Snow Removal reserves the right to cancel or decline any request at any time prior
               to performing the work. If the request is cancelled by the provider before work begins, you will
-              not be charged for the service.
+              receive a full refund.
             </p>
 
             <p className="has-text-grey">
