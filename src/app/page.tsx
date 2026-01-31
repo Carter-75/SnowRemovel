@@ -571,6 +571,11 @@ export default function Home() {
                                     <div>
                                         Travel fee: ${estimate.driveFee.toFixed(2)}
                                     </div>
+                                    <div>
+                                        Travel distance: {estimate.driveMiles.toFixed(1)} mi one-way •
+                                        {" "}
+                                        {estimate.driveMinutes.toFixed(0)} min one-way
+                                    </div>
                                 </details>
                             </div>
                         ) : null}
