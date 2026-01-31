@@ -230,19 +230,21 @@ export default function Home() {
         }
 
         const engine = Matter.Engine.create();
+        const initialWidth = container.clientWidth;
+        const initialHeight = container.clientHeight || 240;
         const render = Matter.Render.create({
             element: container,
             engine,
             options: {
-                width: container.clientWidth,
-                height: 240,
+                width: initialWidth,
+                height: initialHeight,
                 background: "transparent",
                 wireframes: false,
                 pixelRatio: window.devicePixelRatio || 1,
             },
         });
 
-        const ground = Matter.Bodies.rectangle(render.options.width / 2, 235, render.options.width, 10, {
+        const ground = Matter.Bodies.rectangle(initialWidth / 2, initialHeight - 5, initialWidth, 10, {
             isStatic: true,
             render: { fillStyle: "rgba(255,255,255,0.0)" },
         });
@@ -271,9 +273,12 @@ export default function Home() {
 
         const handleResize = () => {
             const width = container.clientWidth;
+            const height = container.clientHeight || 240;
             render.canvas.width = width;
+            render.canvas.height = height;
             render.options.width = width;
-            Matter.Body.setPosition(ground, { x: width / 2, y: 235 });
+            render.options.height = height;
+            Matter.Body.setPosition(ground, { x: width / 2, y: height - 5 });
         };
 
         window.addEventListener("resize", handleResize);
