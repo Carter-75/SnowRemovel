@@ -46,6 +46,7 @@ const buildCsp = (nonce: string) => {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: https://cdnjs.cloudflare.com https://r2cdn.perplexity.ai",
     `connect-src ${connectSrc.join(" ")}`,
+    "frame-src 'self' https://checkout.stripe.com https://vercel.live",
     "form-action 'self' https://checkout.stripe.com",
     isProduction ? "upgrade-insecure-requests" : "",
   ]
