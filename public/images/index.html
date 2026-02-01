@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Carter Moyer Snow Removal Flyers</title>
+<style>
+@page {
+  size: letter;
+  margin: 0.5in;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(180deg, #f7fbff 0%, #eef6ff 60%, #ffffff 100%);
+}
+
+:root {
+  --border-size: 120px;
+}
+
+.sheet {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 0;
+  height: 100vh;
+  position: relative;
+  border: 0;
+  background: #f7fbff;
+  padding: 0;
+  z-index: 3;
+}
+
+.page-snow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background-color: transparent;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'><g fill='none' stroke='%236aa8ff' stroke-width='2' stroke-linecap='round'><path d='M28 34 l7 7 m-7 0 l7-7 m-3-6 v20 m-10-10 h20'/><path d='M162 26 l8 8 m-8 0 l8-8 m-4-6 v20 m-10-10 h20'/><path d='M90 148 l7 7 m-7 0 l7-7 m-3-6 v20 m-10-10 h20'/><path d='M186 178 l7 7 m-7 0 l7-7 m-3-6 v20 m-10-10 h20'/></g></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='%23528fe8' stroke-width='1.8' stroke-linecap='round'><path d='M24 116 l6 6 m-6 0 l6-6 m-3-5 v16 m-8-8 h16'/><path d='M104 28 l6 6 m-6 0 l6-6 m-3-5 v16 m-8-8 h16'/><path d='M130 94 l6 6 m-6 0 l6-6 m-3-5 v16 m-8-8 h16'/></g></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%237bb7ff' stroke-width='2.2' stroke-linecap='round'><path d='M46 50 l8 8 m-8 0 l8-8 m-4-6 v22 m-11-11 h22'/><path d='M190 70 l7 7 m-7 0 l7-7 m-3-6 v20 m-10-10 h20'/><path d='M120 210 l8 8 m-8 0 l8-8 m-4-6 v22 m-11-11 h22'/></g></svg>");
+  background-size: 220px 220px, 160px 160px, 260px 260px;
+  background-position: 0 0, 30px 70px, 80px 20px;
+  background-repeat: repeat;
+  opacity: .7;
+  
+}
+
+.flyer {
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 24px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 40%),
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(180deg, #f8fbff 0%, #eaf3ff 70%, #ffffff 100%);
+  position: relative;
+  overflow: visible;
+  z-index: 5;
+}
+
+.flyer > *:not(.flakes) {
+  position: relative;
+  z-index: 5;
+}
+
+.flyer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  padding: var(--border-size);
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.98) 0 16px, transparent 17px) 0 0/36px 36px repeat-x,
+    radial-gradient(circle, rgba(255, 255, 255, 0.98) 0 16px, transparent 17px) 0 100%/36px 36px repeat-x,
+    radial-gradient(circle, rgba(255, 255, 255, 0.98) 0 16px, transparent 17px) 0 0/36px 36px repeat-y,
+    radial-gradient(circle, rgba(255, 255, 255, 0.98) 0 16px, transparent 17px) 100% 0/36px 36px repeat-y;
+  box-shadow: inset 0 0 0 20px #cfe6ff, inset 0 0 100px rgba(255, 255, 255, 0.95);
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  z-index: 1;
+}
+
+.flyer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 1px, transparent 2px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.8) 0 1px, transparent 2px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.7) 0 1px, transparent 2px);
+  background-size: 36px 36px, 48px 48px, 60px 60px;
+  background-position: 0 0, 12px 18px, 22px 8px;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.title {
+  text-align: center;
+  font-size: 23px;
+  font-weight: bold;
+  color: #0b3d91;
+   
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 15px;
+  font-weight: bold;
+  margin-top: 4px;
+  color: #1f5fbf;
+   
+}
+
+.tagline {
+  text-align: center;
+  font-size: 14px;
+  margin: 8px 0;
+  color: #204a74;
+   
+}
+
+.features {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #1c3550;
+   
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.qr {
+  width: 90px;
+  height: 90px;
+}
+
+.website {
+  font-size: 14px;
+  font-weight: bold;
+  color: #0b3d91;
+   
+}
+
+.callout {
+  font-size: 13px;
+  font-weight: bold;
+  text-align: right;
+  color: #1f5fbf;
+   
+}
+
+.snow-border {
+  border: 2px dashed #b3d9ff;
+  border-radius: 12px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.cta {
+  margin-top: 8px;
+  background: #ffffff;
+  border: 2px solid #cfe6ff;
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #1c3550;
+  text-align: center;
+   
+}
+
+.flakes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.flake {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 0 6px rgba(178, 218, 255, 0.9);
+}
+
+#text {
+  
+}
+
+.flake.f1 { top: 10px; left: 14px; font-size: 20px; }
+.flake.f2 { top: 24px; right: 18px; font-size: 16px; }
+.flake.f3 { bottom: 18px; left: 22px; font-size: 18px; }
+.flake.f4 { bottom: 10px; right: 24px; font-size: 22px; }
+.flake.f5 { top: 45%; left: 10px; font-size: 14px; }
+.flake.f6 { top: 40%; right: 12px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="page-snow"></div>
+
+<div class="sheet">
+
+  <div class="flyer">
+    <div class="flakes">
+      <span class="flake f1">❄</span>
+      <span class="flake f2">✻</span>
+      <span class="flake f3">❄</span>
+      <span class="flake f4">✼</span>
+      <span class="flake f5">❅</span>
+      <span class="flake f6">✻</span>
+    </div>
+    <div>
+      <div id="text" class="title">Carter Moyer Snow Removal</div>
+      <div id="text" class="subtitle">Fast • Reliable • Affordable</div>
+      <div id="text" class="tagline">Warm, safe walkways all winter long</div>
+      <div class="snow-border">
+        <div id="text" class="features">
+          • Driveways, sidewalks, and steps<br>
+          • Same-day clearing after snowfall<br>
+          • De-icing and salt on request<br>
+          • Friendly, local service
+        </div>
+      </div>
+      <div id="text" class="cta">Free estimates • Easy online booking</div>
+    </div>
+    <div class="footer">
+      <img src="qr-snowremovel.png" class="qr" alt="QR code for booking">
+      <div>
+        <div id="text" class="website">snowremovel.space</div>
+        <div id="text" class="callout">Scan to Book Now</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flyer">
+    <div class="flakes">
+      <span class="flake f1">❄</span>
+      <span class="flake f2">✻</span>
+      <span class="flake f3">❄</span>
+      <span class="flake f4">✼</span>
+      <span class="flake f5">❅</span>
+      <span class="flake f6">✻</span>
+    </div>
+    <div>
+      <div id="text" class="title">Carter Moyer Snow Removal</div>
+      <div id="text" class="subtitle">Fast • Reliable • Affordable</div>
+      <div id="text" class="tagline">Warm, safe walkways all winter long</div>
+      <div class="snow-border">
+        <div id="text" class="features">
+          • Driveways, sidewalks, and steps<br>
+          • Same-day clearing after snowfall<br>
+          • De-icing and salt on request<br>
+          • Friendly, local service
+        </div>
+      </div>
+      <div id="text" class="cta">Free estimates • Easy online booking</div>
+    </div>
+    <div class="footer">
+      <img src="qr-snowremovel.png" class="qr" alt="QR code for booking">
+      <div>
+        <div id="text" class="website">snowremovel.space</div>
+        <div id="text" class="callout">Scan to Book Now</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flyer">
+    <div class="flakes">
+      <span class="flake f1">❄</span>
+      <span class="flake f2">✻</span>
+      <span class="flake f3">❄</span>
+      <span class="flake f4">✼</span>
+      <span class="flake f5">❅</span>
+      <span class="flake f6">✻</span>
+    </div>
+    <div>
+      <div id="text" class="title">Carter Moyer Snow Removal</div>
+      <div id="text" class="subtitle">Fast • Reliable • Affordable</div>
+      <div id="text" class="tagline">Warm, safe walkways all winter long</div>
+      <div class="snow-border">
+        <div id="text" class="features">
+          • Driveways, sidewalks, and steps<br>
+          • Same-day clearing after snowfall<br>
+          • De-icing and salt on request<br>
+          • Friendly, local service
+        </div>
+      </div>
+      <div id="text" class="cta">Free estimates • Easy online booking</div>
+    </div>
+    <div class="footer">
+      <img src="qr-snowremovel.png" class="qr" alt="QR code for booking">
+      <div>
+        <div id="text" class="website">snowremovel.space</div>
+        <div id="text" class="callout">Scan to Book Now</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flyer">
+    <div class="flakes">
+      <span class="flake f1">❄</span>
+      <span class="flake f2">✻</span>
+      <span class="flake f3">❄</span>
+      <span class="flake f4">✼</span>
+      <span class="flake f5">❅</span>
+      <span class="flake f6">✻</span>
+    </div>
+    <div>
+      <div id="text" class="title">Carter Moyer Snow Removal</div>
+      <div id="text" class="subtitle">Fast • Reliable • Affordable</div>
+      <div id="text" class="tagline">Warm, safe walkways all winter long</div>
+      <div class="snow-border">
+        <div id="text" class="features">
+          • Driveways, sidewalks, and steps<br>
+          • Same-day clearing after snowfall<br>
+          • De-icing and salt on request<br>
+          • Friendly, local service
+        </div>
+      </div>
+      <div id="text" class="cta">Free estimates • Easy online booking</div>
+    </div>
+    <div class="footer">
+      <img src="qr-snowremovel.png" class="qr" alt="QR code for booking">
+      <div>
+        <div id="text" class="website">snowremovel.space</div>
+        <div id="text" class="callout">Scan to Book Now</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -3,19 +3,21 @@ const envNumber = (value: string | undefined, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const BASE_RATE_PER_SQFT = envNumber(process.env.SNOW_BASE_RATE_PER_SQFT, 0.06);
-const RATE_PER_1000_SQFT = envNumber(process.env.SNOW_RATE_PER_1000_SQFT, 0.02);
-const SHORT_JOB_MAX_SQFT = envNumber(process.env.SNOW_SHORT_JOB_MAX_SQFT, 450);
-const PARCEL_LAYER_URL =
-  process.env.PARCEL_LAYER_URL ??
-  "https://services3.arcgis.com/n6uYoouQZW75n5WI/arcgis/rest/services/Wisconsin_Statewide_Parcels/FeatureServer/0";
-const ORS_API_KEY = process.env.ORS_API_KEY ?? "";
-const DRIVE_ORIGIN_ADDRESS =
-  process.env.DRIVE_ORIGIN_ADDRESS ?? "401 Gillette St, La Crosse, WI 54603";
-const DRIVE_PER_MILE_RATE = envNumber(process.env.DRIVE_PER_MILE_RATE, 1.5);
-const DRIVE_HOURLY_RATE = envNumber(process.env.DRIVE_HOURLY_RATE, 15);
-const DRIVE_FREE_MINUTES = envNumber(process.env.DRIVE_FREE_MINUTES, 15);
-const SERVICE_AREA_SQRT_FACTOR = envNumber(process.env.SNOW_SERVICE_AREA_SQRT_FACTOR, 5);
+// Read environment variables at runtime instead of module load time
+const getEnvConfig = () => ({
+  BASE_RATE_PER_SQFT: envNumber(process.env.SNOW_BASE_RATE_PER_SQFT, 0.06),
+  RATE_PER_1000_SQFT: envNumber(process.env.SNOW_RATE_PER_1000_SQFT, 0.02),
+  SHORT_JOB_MAX_SQFT: envNumber(process.env.SNOW_SHORT_JOB_MAX_SQFT, 450),
+  PARCEL_LAYER_URL:
+    process.env.PARCEL_LAYER_URL ??
+    "https://services3.arcgis.com/n6uYoouQZW75n5WI/arcgis/rest/services/Wisconsin_Statewide_Parcels/FeatureServer/0",
+  ORS_API_KEY: process.env.ORS_API_KEY ?? "",
+  DRIVE_ORIGIN_ADDRESS: process.env.DRIVE_ORIGIN_ADDRESS ?? "401 Gillette St, La Crosse, WI 54603",
+  DRIVE_PER_MILE_RATE: envNumber(process.env.DRIVE_PER_MILE_RATE, 1.5),
+  DRIVE_HOURLY_RATE: envNumber(process.env.DRIVE_HOURLY_RATE, 15),
+  DRIVE_FREE_MINUTES: envNumber(process.env.DRIVE_FREE_MINUTES, 15),
+  SERVICE_AREA_SQRT_FACTOR: envNumber(process.env.SNOW_SERVICE_AREA_SQRT_FACTOR, 5),
+});
 
 const metersToSquareFeet = (sqMeters: number) => sqMeters * 10.7639;
 
@@ -32,8 +34,12 @@ const haversineMiles = (a: { lat: number; lon: number }, b: { lat: number; lon: 
   return 2 * earthRadiusMiles * Math.asin(Math.sqrt(h));
 };
 
-const fetchOrsRouteSummary = async (origin: { lat: number; lon: number }, destination: { lat: number; lon: number }) => {
-  if (!ORS_API_KEY) {
+const fetchOrsRouteSummary = async (
+  origin: { lat: number; lon: number },
+  destination: { lat: number; lon: number },
+  apiKey: string
+) => {
+  if (!apiKey) {
     return { summary: null, status: "Missing ORS_API_KEY" };
   }
 
@@ -43,7 +49,7 @@ const fetchOrsRouteSummary = async (origin: { lat: number; lon: number }, destin
 
   const orsResponse = await fetch(orsUrl.toString(), {
     headers: {
-      Authorization: ORS_API_KEY,
+      Authorization: apiKey,
       Accept: "application/json",
       "User-Agent": "CarterSnowRemoval/1.0 (contact: cartermoyer75@gmail.com)",
     },
@@ -170,16 +176,18 @@ const geocodeAddress = async (address: string) => {
 };
 
 export const computeEstimate = async (address: string, urgentService: boolean) => {
+  const config = getEnvConfig();
+  
   const destination = await geocodeAddress(address);
   if (!destination) {
     return null;
   }
 
-  if (!PARCEL_LAYER_URL) {
+  if (!config.PARCEL_LAYER_URL) {
     return null;
   }
 
-  const parcelUrl = new URL(`${PARCEL_LAYER_URL.replace(/\/$/, "")}/query`);
+  const parcelUrl = new URL(`${config.PARCEL_LAYER_URL.replace(/\/$/, "")}/query`);
   parcelUrl.searchParams.set("geometry", `${destination.lon},${destination.lat}`);
   parcelUrl.searchParams.set("geometryType", "esriGeometryPoint");
   parcelUrl.searchParams.set("inSR", "4326");
@@ -208,24 +216,24 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
     return null;
   }
   const rawSqFt = metersToSquareFeet(areaSqMeters);
-  const areaSqFt = Math.sqrt(rawSqFt) * SERVICE_AREA_SQRT_FACTOR;
+  const areaSqFt = Math.sqrt(rawSqFt) * config.SERVICE_AREA_SQRT_FACTOR;
   const sizeFactor = Math.log10(areaSqFt / 1000 + 1);
-  const dynamicRate = BASE_RATE_PER_SQFT + sizeFactor * RATE_PER_1000_SQFT;
+  const dynamicRate = config.BASE_RATE_PER_SQFT + sizeFactor * config.RATE_PER_1000_SQFT;
   const basePrice = areaSqFt * dynamicRate;
   const upchargeAmount = urgentService ? basePrice * 0.1 : 0;
   const price = basePrice + upchargeAmount;
-  const jobType = areaSqFt <= SHORT_JOB_MAX_SQFT ? "Short job" : "Long job";
+  const jobType = areaSqFt <= config.SHORT_JOB_MAX_SQFT ? "Short job" : "Long job";
 
   let driveFee = 0;
   let driveMiles = 0;
   let driveMinutes = 0;
   let roundTripMiles = 0;
   let roundTripMinutes = 0;
-  const origin = await geocodeAddress(DRIVE_ORIGIN_ADDRESS);
+  const origin = await geocodeAddress(config.DRIVE_ORIGIN_ADDRESS);
   if (origin) {
     let summary = null as null | { distance?: number; duration?: number };
 
-    const orsResult = await fetchOrsRouteSummary(origin, destination);
+    const orsResult = await fetchOrsRouteSummary(origin, destination, config.ORS_API_KEY);
     summary = orsResult.summary;
 
     if (!summary) {
@@ -239,9 +247,9 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
       driveMinutes = summary.duration / 60;
       roundTripMiles = driveMiles * 2;
       roundTripMinutes = driveMinutes * 2;
-      if (driveMinutes > DRIVE_FREE_MINUTES) {
-        const mileageFee = driveMiles * DRIVE_PER_MILE_RATE;
-        const timeFee = (roundTripMinutes * DRIVE_HOURLY_RATE) / 60;
+      if (driveMinutes > config.DRIVE_FREE_MINUTES) {
+        const mileageFee = driveMiles * config.DRIVE_PER_MILE_RATE;
+        const timeFee = (roundTripMinutes * config.DRIVE_HOURLY_RATE) / 60;
         driveFee = Math.max(mileageFee, timeFee);
       }
     }
