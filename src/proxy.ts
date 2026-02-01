@@ -28,9 +28,14 @@ const buildCsp = (nonce: string) => {
     `'nonce-${nonce}'`,
     "https://cdnjs.cloudflare.com",
   ];
+  
+  const connectSrc = ["'self'"];
+  
   if (!isProduction) {
     scriptSrc.push("https://vercel.live");
+    connectSrc.push("https://vercel.live", "wss://ws-us3.pusher.com");
   }
+  
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -40,7 +45,7 @@ const buildCsp = (nonce: string) => {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: https://cdnjs.cloudflare.com https://r2cdn.perplexity.ai",
-    "connect-src 'self'",
+    `connect-src ${connectSrc.join(" ")}`,
     "form-action 'self' https://checkout.stripe.com",
     isProduction ? "upgrade-insecure-requests" : "",
   ]
