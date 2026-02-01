@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { computeEstimate } from "@/lib/estimate";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { ADDRESS_RETENTION_MS, ESTIMATE_RATE_LIMIT, ESTIMATE_RATE_WINDOW_MS, MAX_ADDRESS_LENGTH, DISCOUNT_WINDOW_SECONDS } from "@/lib/constants";
 
 // Database functions for address discount tracking
 const getAddressKey = (address: string) => `discount:${address.toLowerCase().trim()}`;
@@ -13,6 +14,13 @@ const getAddressDiscount = async (address: string): Promise<{ timestamp: number;
   try {
     const { kv } = await import("@vercel/kv");
     const data = await kv.get<{ timestamp: number; expired: boolean }>(getAddressKey(address));
+    
+    // Auto-cleanup: Delete records older than 3 years
+    if (data && Date.now() - data.timestamp > ADDRESS_RETENTION_MS) {
+      await kv.del(getAddressKey(address));
+      return null;
+    }
+    
     return data;
   } catch {
     return null;
@@ -25,7 +33,8 @@ const setAddressDiscount = async (address: string, timestamp: number) => {
   }
   try {
     const { kv } = await import("@vercel/kv");
-    await kv.set(getAddressKey(address), { timestamp, expired: false });
+    const threeYearsSeconds = Math.floor(ADDRESS_RETENTION_MS / 1000);
+    await kv.set(getAddressKey(address), { timestamp, expired: false }, { ex: threeYearsSeconds });
   } catch {
     // Ignore storage errors
   }
@@ -49,7 +58,7 @@ const markAddressExpired = async (address: string) => {
 export async function POST(request: Request) {
   const parcelLayerUrl = process.env.PARCEL_LAYER_URL ?? "";
   const clientIp = getClientIp(request);
-  const rateLimit = await checkRateLimit(`estimate:${clientIp}`, 30, 60_000);
+  const rateLimit = await checkRateLimit(`estimate:${clientIp}`, ESTIMATE_RATE_LIMIT, ESTIMATE_RATE_WINDOW_MS);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again shortly." },
@@ -64,13 +73,19 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json()) as { address?: string; urgentService?: boolean };
+  const body = (await request.json()) as { address?: string; urgentService?: boolean; consentToStorage?: boolean };
   const address = body.address?.trim() ?? "";
+  const consentToStorage = Boolean(body.consentToStorage);
+  
   if (!address) {
     return NextResponse.json({ error: "Address is required." }, { status: 400 });
   }
-  if (address.length > 200) {
+  if (address.length > MAX_ADDRESS_LENGTH) {
     return NextResponse.json({ error: "Address is too long." }, { status: 400 });
+  }
+
+  if (!consentToStorage) {
+    return NextResponse.json({ error: "Consent to address storage is required." }, { status: 400 });
   }
 
   // Check if this address already has discount tracking
@@ -82,14 +97,14 @@ export async function POST(request: Request) {
     timestampToUse = existingDiscount.timestamp;
     discountExpired = existingDiscount.expired;
 
-    // Check if discount time has expired (10 minutes = 600 seconds)
+    // Check if discount time has expired
     const elapsed = Math.floor((Date.now() - existingDiscount.timestamp) / 1000);
-    if (elapsed >= 600 && !existingDiscount.expired) {
+    if (elapsed >= DISCOUNT_WINDOW_SECONDS && !existingDiscount.expired) {
       await markAddressExpired(address);
       discountExpired = true;
     }
   } else {
-    // First time for this address - store it
+    // First time for this address - store it (only with consent)
     await setAddressDiscount(address, timestampToUse);
   }
 

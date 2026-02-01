@@ -3,12 +3,11 @@ import Stripe from "stripe";
 
 import { computeEstimate } from "@/lib/estimate";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { sanitizeName, sanitizeEmail, sanitizeText, redactAddress } from "@/lib/input-sanitize";
+import { CHECKOUT_RATE_LIMIT, CHECKOUT_RATE_WINDOW_MS, DISCOUNT_WINDOW_SECONDS, DISCOUNT_FIRST_PHASE_SECONDS, DISCOUNT_MAX_PERCENT, DISCOUNT_MIN_PERCENT } from "@/lib/constants";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-
-const normalizeText = (value: string | undefined, maxLength: number) =>
-  (value ?? "").trim().slice(0, maxLength);
 
 const isAllowedBaseUrl = (value: string) => {
   try {
@@ -24,13 +23,13 @@ const isAllowedBaseUrl = (value: string) => {
 
 const calculateDiscountPercent = (timestamp: number) => {
   const elapsedSeconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (Number.isNaN(elapsedSeconds) || elapsedSeconds >= 600) {
+  if (Number.isNaN(elapsedSeconds) || elapsedSeconds >= DISCOUNT_WINDOW_SECONDS) {
     return 0;
   }
-  if (elapsedSeconds <= 300) {
-    return 15 - (elapsedSeconds / 300) * 5;
+  if (elapsedSeconds <= DISCOUNT_FIRST_PHASE_SECONDS) {
+    return DISCOUNT_MAX_PERCENT - (elapsedSeconds / DISCOUNT_FIRST_PHASE_SECONDS) * (DISCOUNT_MAX_PERCENT - DISCOUNT_MIN_PERCENT);
   }
-  return Math.max(0, 10 - ((elapsedSeconds - 300) / 300) * 10);
+  return Math.max(0, DISCOUNT_MIN_PERCENT - ((elapsedSeconds - DISCOUNT_FIRST_PHASE_SECONDS) / DISCOUNT_FIRST_PHASE_SECONDS) * DISCOUNT_MIN_PERCENT);
 };
 
 const parseLocalDateTimeParts = (value: string) => {
@@ -76,7 +75,7 @@ const resolveUrgentFromTimeframe = (timeframe: string, timezoneOffsetMinutes?: n
 
 export async function POST(request: Request) {
   const clientIp = getClientIp(request);
-  const rateLimit = await checkRateLimit(`checkout:${clientIp}`, 10, 60_000);
+  const rateLimit = await checkRateLimit(`checkout:${clientIp}`, CHECKOUT_RATE_LIMIT, CHECKOUT_RATE_WINDOW_MS);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again shortly." },
@@ -98,10 +97,10 @@ export async function POST(request: Request) {
     estimateTimestamp?: number;
   };
 
-  const name = normalizeText(body.name, 120);
-  const address = normalizeText(body.address, 200);
-  const timeframe = normalizeText(body.timeframe, 200);
-  const email = normalizeText(body.email, 254);
+  const name = sanitizeName(body.name ?? '', 120);
+  const address = sanitizeText(body.address ?? '', 200);
+  const timeframe = sanitizeText(body.timeframe ?? '', 200);
+  const email = sanitizeEmail(body.email ?? '');
   const timezoneOffsetMinutes =
     typeof body.timezoneOffsetMinutes === "number" ? body.timezoneOffsetMinutes : undefined;
 
@@ -155,7 +154,8 @@ export async function POST(request: Request) {
     cancel_url: `${BASE_URL}/?payment=cancel`,
     metadata: {
       name,
-      address,
+      address: redactAddress(address), // Store redacted version in Stripe
+      fullAddressHash: await hashAddressForLookup(address), // Store hash for lookup
       timeframe,
       discountPercent: discountPercent.toFixed(2),
       discountAmount: discountAmount.toFixed(2),
@@ -168,4 +168,13 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ url: session.url });
+}
+
+// Helper to hash address for webhook lookup without storing plaintext
+async function hashAddressForLookup(address: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(address.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }

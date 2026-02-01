@@ -3,6 +3,7 @@ import path from "path";
 import { readFile } from "fs/promises";
 
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { BUSINESS_EMAIL, BUSINESS_PHONE } from "@/lib/constants";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "";
@@ -194,7 +195,7 @@ export async function POST(request: Request) {
       <p><strong>Total estimate:</strong> $${totalWithDrive?.toFixed(2) ?? estimate?.price.toFixed(2)}</p>
       <p>This total includes snow removal service and any applicable travel fee.</p>
       <p>${travelFeeNote} ${urgencyNote}</p>
-      <p>If you need to cancel before the scheduled service day, email cartermoyer75@gmail.com or text 920-904-2695.</p>
+      <p>If you need to cancel before the scheduled service day, email ${BUSINESS_EMAIL} or text ${BUSINESS_PHONE}.</p>
       <p>Attached are your Terms & Conditions and two copies of the Right to Cancel notice for your records.</p>
     `;
 

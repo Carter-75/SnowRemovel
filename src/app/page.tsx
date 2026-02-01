@@ -7,6 +7,8 @@ import anime from "animejs";
 import * as Matter from "matter-js";
 
 import styles from "./page.module.css";
+import { DISCOUNT_WINDOW_SECONDS, DISCOUNT_FIRST_PHASE_SECONDS, DISCOUNT_MAX_PERCENT, DISCOUNT_MIN_PERCENT, URGENCY_THRESHOLD_DAYS, MIN_DATETIME_STEP_MINUTES, MAX_SCHEDULE_AHEAD_MONTHS, BUSINESS_EMAIL, BUSINESS_PHONE } from "@/lib/constants";
+import { HoneypotField } from "@/lib/honeypot";
 
 const SERVICES = [
     {
@@ -97,10 +99,12 @@ export default function Home() {
     const [requestName, setRequestName] = useState("");
     const [requestEmail, setRequestEmail] = useState("");
     const [requestDateTime, setRequestDateTime] = useState("");
-    const [requestDetails, setRequestDetails] = useState("");
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [downloadedTerms, setDownloadedTerms] = useState(false);
     const [emergencyWaiver, setEmergencyWaiver] = useState(false);
+    const [consentToDataStorage, setConsentToDataStorage] = useState(false);
+    const [honeypot, setHoneypot] = useState("");
+    const [formLoadTime] = useState(Date.now());
     const [paymentStatus, setPaymentStatus] = useState("");
     const [isPaying, setIsPaying] = useState(false);
     const heroCardRef = useRef<HTMLDivElement | null>(null);
@@ -178,13 +182,30 @@ export default function Home() {
         const requestedStart = new Date(requestedAt);
         requestedStart.setHours(0, 0, 0, 0);
         const diffDays = Math.ceil((requestedStart.getTime() - todayStart.getTime()) / (24 * 60 * 60 * 1000));
-        return diffDays <= 3;
+        return diffDays <= URGENCY_THRESHOLD_DAYS;
     };
 
     const handleEstimate = async () => {
+        // Honeypot check - if filled, likely a bot
+        if (honeypot) {
+            setError("Form validation failed. Please try again.");
+            return;
+        }
+        
+        // Time-based check - submission too fast
+        if (Date.now() - formLoadTime < 3000) {
+            setError("Please take a moment to review the form.");
+            return;
+        }
+
         const fullAddress = buildFullAddress();
         if (!fullAddress) {
             setError("Enter a full address to estimate pricing.");
+            return;
+        }
+
+        if (!consentToDataStorage) {
+            setError("Please consent to address storage for discount tracking before getting an estimate.");
             return;
         }
 
@@ -196,7 +217,11 @@ export default function Home() {
             const response = await fetch("/api/estimate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ address: fullAddress, urgentService }),
+                body: JSON.stringify({ 
+                    address: fullAddress, 
+                    urgentService,
+                    consentToStorage: consentToDataStorage 
+                }),
             });
             const data = await response.json();
             if (!response.ok) {
@@ -241,7 +266,7 @@ export default function Home() {
 
         const updateCountdown = () => {
             const elapsed = Math.floor((Date.now() - estimate.timestamp) / 1000);
-            const remaining = Math.max(0, 600 - elapsed);
+            const remaining = Math.max(0, DISCOUNT_WINDOW_SECONDS - elapsed);
             setDiscountSecondsLeft(remaining);
         };
 
@@ -254,11 +279,11 @@ export default function Home() {
         if (!estimate || discountSecondsLeft <= 0) {
             return 0;
         }
-        const elapsed = 600 - discountSecondsLeft;
-        if (elapsed <= 300) {
-            return Number((15 - (elapsed / 300) * 5).toFixed(2));
+        const elapsed = DISCOUNT_WINDOW_SECONDS - discountSecondsLeft;
+        if (elapsed <= DISCOUNT_FIRST_PHASE_SECONDS) {
+            return Number((DISCOUNT_MAX_PERCENT - (elapsed / DISCOUNT_FIRST_PHASE_SECONDS) * (DISCOUNT_MAX_PERCENT - DISCOUNT_MIN_PERCENT)).toFixed(2));
         }
-        return Number(Math.max(0, 10 - ((elapsed - 300) / 300) * 10).toFixed(2));
+        return Number(Math.max(0, DISCOUNT_MIN_PERCENT - ((elapsed - DISCOUNT_FIRST_PHASE_SECONDS) / DISCOUNT_FIRST_PHASE_SECONDS) * DISCOUNT_MIN_PERCENT).toFixed(2));
     }, [discountSecondsLeft, estimate]);
 
     const urgentService = useMemo(() => isUrgentRequest(requestDateTime), [requestDateTime]);
@@ -694,7 +719,23 @@ export default function Home() {
                                 </div>
                             </div>
                         </div>
-                        <button className={styles.primaryButton} type="button" onClick={handleEstimate} disabled={isLoading}>
+                        <div className={styles.checkboxRow}>
+                            <label className={styles.checkboxLabel}>
+                                <input
+                                    type="checkbox"
+                                    checked={consentToDataStorage}
+                                    onChange={(event) => setConsentToDataStorage(event.target.checked)}
+                                />
+                                <span>
+                                    I consent to my address being stored temporarily for discount tracking purposes. See{" "}
+                                    <a href="/privacy">Privacy Policy</a> for details.
+                                </span>
+                            </label>
+                        </div>
+                        
+                        <HoneypotField value={honeypot} onChange={setHoneypot} />
+                        
+                        <button className={styles.primaryButton} type="button" onClick={handleEstimate} disabled={isLoading || !consentToDataStorage}>
                             {isLoading ? "Estimating..." : "Estimate price"}
                         </button>
                         {error ? <div className={styles.estimateError}>{error}</div> : null}
@@ -801,18 +842,6 @@ export default function Home() {
                                                 Rush service detected (within 3 days). A 10% convenience upcharge will apply.
                                             </div>
                                         ) : null}
-                                    </div>
-                                </div>
-                                <div className="field">
-                                    <label className="label" htmlFor="details">Details</label>
-                                    <div className="control">
-                                        <textarea
-                                            className="textarea"
-                                            id="details"
-                                            placeholder="Driveway size, walkway, steps, timing"
-                                            value={requestDetails}
-                                            onChange={(event) => setRequestDetails(event.target.value)}
-                                        />
                                     </div>
                                 </div>
                                 <div className={styles.downloadRow}>
@@ -984,10 +1013,10 @@ export default function Home() {
                         <div className={styles.formCard}>
                             <h3 className="title is-5">Contact details</h3>
                             <div>
-                                <strong>Phone:</strong> <span className="has-text-grey">920-904-2695</span>
+                                <strong>Phone:</strong> <span className="has-text-grey">{BUSINESS_PHONE}</span>
                             </div>
                             <div>
-                                <strong>Email:</strong> <span className="has-text-grey">cartermoyer75@gmail.com</span>
+                                <strong>Email:</strong> <span className="has-text-grey">{BUSINESS_EMAIL}</span>
                             </div>
                             <div>
                                 <strong>Service area:</strong> <span className="has-text-grey">Local neighborhoods within 15 miles</span>

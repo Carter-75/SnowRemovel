@@ -4,6 +4,7 @@ import "./globals.css";
 import { headers } from "next/headers";
 import Script from "next/script";
 import type { Metadata } from "next";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: "Carter Moyer Snow Removal",
@@ -33,7 +34,9 @@ export default async function RootLayout({
         />
       </head>
       <body>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   );

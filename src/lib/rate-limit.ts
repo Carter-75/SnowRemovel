@@ -34,11 +34,30 @@ const pruneStore = (store: Map<string, RateLimitEntry>, now: number, maxEntries 
 };
 
 export const getClientIp = (request: Request) => {
+  // Try multiple headers in order of reliability
+  // Cloudflare / Vercel
+  const cfConnectingIp = request.headers.get("cf-connecting-ip");
+  if (cfConnectingIp) {
+    return cfConnectingIp.trim();
+  }
+
+  // Vercel
+  const xRealIp = request.headers.get("x-real-ip");
+  if (xRealIp) {
+    return xRealIp.trim();
+  }
+
+  // Standard proxy header - take first IP (client)
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
+    const firstIp = forwardedFor.split(",")[0]?.trim();
+    if (firstIp) {
+      return firstIp;
+    }
   }
-  return request.headers.get("x-real-ip") ?? "unknown";
+
+  // Fallback - treat as suspicious
+  return "unknown";
 };
 
 export const checkRateLimit = async (

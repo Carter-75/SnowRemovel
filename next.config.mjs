@@ -20,8 +20,27 @@ const nextConfig = {
                 value: "nosniff",
             },
             {
+                key: "X-Frame-Options",
+                value: "DENY",
+            },
+            {
                 key: "Permissions-Policy",
                 value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+            },
+            {
+                key: "Content-Security-Policy",
+                value: [
+                    "default-src 'self'",
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js requires unsafe-eval
+                    "style-src 'self' 'unsafe-inline'", // Inline styles for animation
+                    "img-src 'self' data: https:",
+                    "font-src 'self' data:",
+                    "connect-src 'self' https://api.stripe.com https://nominatim.openstreetmap.org https://api.openrouteservice.org https://router.project-osrm.org https://services3.arcgis.com",
+                    "frame-src https://checkout.stripe.com",
+                    "object-src 'none'",
+                    "base-uri 'self'",
+                    "form-action 'self'",
+                ].join("; "),
             },
         ];
 

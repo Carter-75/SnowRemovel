@@ -1,3 +1,6 @@
+import { fetchWithRetry } from "./fetch-retry";
+import { BUSINESS_EMAIL, BUSINESS_ADDRESS } from "./constants";
+
 const envNumber = (value: string | undefined, fallback: number) => {
   const parsed = Number.parseFloat(value ?? "");
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -12,7 +15,7 @@ const getEnvConfig = () => ({
     process.env.PARCEL_LAYER_URL ??
     "https://services3.arcgis.com/n6uYoouQZW75n5WI/arcgis/rest/services/Wisconsin_Statewide_Parcels/FeatureServer/0",
   ORS_API_KEY: process.env.ORS_API_KEY ?? "",
-  DRIVE_ORIGIN_ADDRESS: process.env.DRIVE_ORIGIN_ADDRESS ?? "401 Gillette St, La Crosse, WI 54603",
+  DRIVE_ORIGIN_ADDRESS: process.env.DRIVE_ORIGIN_ADDRESS ?? BUSINESS_ADDRESS,
   DRIVE_PER_MILE_RATE: envNumber(process.env.DRIVE_PER_MILE_RATE, 1.5),
   DRIVE_HOURLY_RATE: envNumber(process.env.DRIVE_HOURLY_RATE, 15),
   DRIVE_FREE_MINUTES: envNumber(process.env.DRIVE_FREE_MINUTES, 15),
@@ -47,13 +50,16 @@ const fetchOrsRouteSummary = async (
   orsUrl.searchParams.set("start", `${origin.lon},${origin.lat}`);
   orsUrl.searchParams.set("end", `${destination.lon},${destination.lat}`);
 
-  const orsResponse = await fetch(orsUrl.toString(), {
+  const orsResponse = await fetchWithRetry(orsUrl.toString(), {
     headers: {
       Authorization: apiKey,
       Accept: "application/json",
-      "User-Agent": "CarterSnowRemoval/1.0 (contact: cartermoyer75@gmail.com)",
+      "User-Agent": `CarterSnowRemoval/1.0 (contact: ${BUSINESS_EMAIL})`,
     },
     cache: "no-store",
+  }, {
+    maxAttempts: 2, // Limited retries for routing API
+    initialDelayMs: 500,
   });
 
   if (!orsResponse.ok) {
@@ -83,12 +89,15 @@ const fetchOsrmRouteSummary = async (origin: { lat: number; lon: number }, desti
   osrmUrl.searchParams.set("overview", "false");
   osrmUrl.searchParams.set("alternatives", "false");
 
-  const osrmResponse = await fetch(osrmUrl.toString(), {
+  const osrmResponse = await fetchWithRetry(osrmUrl.toString(), {
     headers: {
       Accept: "application/json",
-      "User-Agent": "CarterSnowRemoval/1.0 (contact: cartermoyer75@gmail.com)",
+      "User-Agent": `CarterSnowRemoval/1.0 (contact: ${BUSINESS_EMAIL})`,
     },
     cache: "no-store",
+  }, {
+    maxAttempts: 2,
+    initialDelayMs: 500,
   });
 
   if (!osrmResponse.ok) {
@@ -153,11 +162,14 @@ const geocodeAddress = async (address: string) => {
   geocodeUrl.searchParams.set("limit", "1");
   geocodeUrl.searchParams.set("q", address);
 
-  const geocodeResponse = await fetch(geocodeUrl.toString(), {
+  const geocodeResponse = await fetchWithRetry(geocodeUrl.toString(), {
     headers: {
-      "User-Agent": "CarterSnowRemoval/1.0 (contact: cartermoyer75@gmail.com)",
+      "User-Agent": `CarterSnowRemoval/1.0 (contact: ${BUSINESS_EMAIL})`,
     },
     cache: "no-store",
+  }, {
+    maxAttempts: 3,
+    initialDelayMs: 1000,
   });
 
   if (!geocodeResponse.ok) {
@@ -199,7 +211,10 @@ export const computeEstimate = async (address: string, urgentService: boolean) =
   parcelUrl.searchParams.set("units", "esriSRUnit_Meter");
   parcelUrl.searchParams.set("f", "json");
 
-  const parcelResponse = await fetch(parcelUrl.toString(), { cache: "no-store" });
+  const parcelResponse = await fetchWithRetry(parcelUrl.toString(), { cache: "no-store" }, {
+    maxAttempts: 3,
+    initialDelayMs: 1000,
+  });
   if (!parcelResponse.ok) {
     return null;
   }

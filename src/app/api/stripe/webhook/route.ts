@@ -10,25 +10,23 @@ import {
   taxConstants,
 } from "@/lib/financial-engine";
 import { loadFinancialState, persistFinancialState } from "@/lib/financial-store";
+import { logger } from "@/lib/logger";
+import { BUSINESS_ADDRESS, BUSINESS_EMAIL, BUSINESS_PHONE } from "@/lib/constants";
+import { getCustomerPaymentEmail, getProviderNotificationEmail } from "@/lib/email-templates";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "";
 const RESEND_TO = process.env.RESEND_TO ?? "";
-const BUSINESS_ADDRESS =
+const BUSINESS_ADDRESS_VALUE =
   process.env.BUSINESS_ADDRESS ??
   process.env.DRIVE_ORIGIN_ADDRESS ??
-  "401 Gillette St, La Crosse, WI 54603";
+  BUSINESS_ADDRESS;
 
 const parseNumber = (value?: string | null) => {
   const parsed = Number.parseFloat(String(value ?? ""));
   return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const isEmergencyTimeframe = (timeframe: string) => {
-  const normalized = timeframe.toLowerCase();
-  return /(within\s*3\s*day|3\s*day|three\s*day|urgent|asap|immediate)/.test(normalized);
 };
 
 const sendResendEmail = async (payload: {
@@ -56,6 +54,7 @@ const sendResendEmail = async (payload: {
 
 export async function POST(request: Request) {
   if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET) {
+    logger.error("Stripe webhook endpoint called but credentials not configured");
     return NextResponse.json({ error: "Stripe is not configured." }, { status: 500 });
   }
 
@@ -64,6 +63,7 @@ export async function POST(request: Request) {
   const body = await request.text();
 
   if (!signature) {
+    logger.webhookFailure("Missing Stripe signature header");
     return NextResponse.json({ error: "Missing signature." }, { status: 400 });
   }
 
@@ -71,16 +71,28 @@ export async function POST(request: Request) {
   try {
     event = stripe.webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET);
   } catch (err) {
+    logger.webhookFailure("Invalid Stripe signature", {
+      error: err instanceof Error ? err.message : 'Unknown error',
+    });
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 
   if (event.type === "checkout.session.completed") {
     if (!RESEND_API_KEY || !RESEND_FROM || !RESEND_TO) {
+      logger.error("Checkout completed but email service not configured", {
+        eventId: event.id,
+        sessionId: (event.data.object as Stripe.Checkout.Session).id,
+      });
       return NextResponse.json({ error: "Email service is not configured." }, { status: 500 });
     }
 
     const session = event.data.object as Stripe.Checkout.Session;
     if (session.payment_status && session.payment_status !== "paid") {
+      logger.warn("Checkout session completed but payment not confirmed", {
+        eventId: event.id,
+        sessionId: session.id,
+        paymentStatus: session.payment_status,
+      });
       return NextResponse.json({ received: true });
     }
     const paymentId =
@@ -93,6 +105,7 @@ export async function POST(request: Request) {
     const driveFee = parseNumber(metadata.driveFee);
     const discountAmount = parseNumber(metadata.discountAmount);
     const timeframe = metadata.timeframe ?? "";
+    const urgentService = metadata.urgentService === "true";
     const resolvedBasePrice =
       basePrice > 0 ? basePrice : Math.max(0, gross - driveFee - urgencyFee + discountAmount);
 
@@ -184,6 +197,14 @@ export async function POST(request: Request) {
       html: ownerHtml,
     });
 
+    logger.info("Payment processed successfully", {
+      eventId: event.id,
+      sessionId: session.id,
+      paymentId,
+      gross,
+      customerEmail: session.customer_email || 'none',
+    });
+
     if (session.customer_email) {
       const termsPath = path.join(process.cwd(), "public", "legal", "terms.pdf");
       const cancelPath = path.join(process.cwd(), "public", "legal", "right-to-cancel.pdf");
@@ -192,19 +213,14 @@ export async function POST(request: Request) {
         readFile(cancelPath),
       ]);
 
-      const emergencyWaiver = isEmergencyTimeframe(timeframe)
-        ? `<p><strong>Emergency Waiver:</strong> You requested completion within 3 days. Service may begin immediately based on your emergency request.</p>`
-        : "";
-
-      const customerHtml = `
-        <h2>Payment Received - Snow Removal Service</h2>
-        <p><strong>Total price paid:</strong> ${formatCurrency(gross)}</p>
-        <p>This service is NON-TAXABLE for sales tax purposes in Wisconsin.</p>
-        ${emergencyWaiver}
-        <p style="font-size:12pt;font-weight:700;">BUYER'S RIGHT TO CANCEL: You may cancel this transaction at any time prior to midnight of the third business day after the date of this transaction by delivering or mailing a signed and dated notice to ${BUSINESS_ADDRESS}.</p>
-        <p>Cancellation requests may also be sent by email to cartermoyer75@gmail.com or by text to 920-904-2695, and must be received before the scheduled service day.</p>
-        <p><em>THIS IS A PRELIMINARY ESTIMATE FOR TRACKING PURPOSES AND DOES NOT CONSTITUTE OFFICIAL TAX ADVICE.</em></p>
-      `;
+      const customerHtml = getCustomerPaymentEmail({
+        customerName: metadata.customerName ?? "Customer",
+        serviceDatetime: timeframe || "TBD",
+        serviceAddress: metadata.redactedAddress ?? address,
+        finalPrice: gross,
+        urgentService,
+        emergencyWaiver: metadata.emergencyWaiver === "true",
+      });
 
       await sendResendEmail({
         to: [session.customer_email],
