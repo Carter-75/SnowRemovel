@@ -482,11 +482,29 @@ export default function Home() {
 
         window.addEventListener("resize", handleResize);
 
+        // Intersection observer to pause physics when off-screen (battery optimization)
+        let observer: IntersectionObserver | null = null;
+        if ('IntersectionObserver' in window && snowSceneRef.current) {
+            observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        Matter.Runner.run(runner, engine);
+                    } else {
+                        Matter.Runner.stop(runner);
+                    }
+                });
+            }, { threshold: 0 });
+            observer.observe(snowSceneRef.current);
+        }
+
         return () => {
             window.clearInterval(snowInterval);
             window.clearInterval(windInterval);
             window.clearInterval(cleanupInterval);
             window.removeEventListener("resize", handleResize);
+            if (observer) {
+                observer.disconnect();
+            }
             Matter.Render.stop(render);
             Matter.Runner.stop(runner);
             Matter.Engine.clear(engine);
@@ -562,6 +580,8 @@ export default function Home() {
                                 fill
                                 sizes="(max-width: 900px) 100vw, 45vw"
                                 priority
+                                placeholder="blur"
+                                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwABmQAAP/2Q=="
                                 className={styles.heroPhoto}
                             />
                         </div>

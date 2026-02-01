@@ -19,18 +19,22 @@ const getStore = () => {
 };
 
 const pruneStore = (store: Map<string, RateLimitEntry>, now: number, maxEntries = 10_000) => {
-  if (store.size <= maxEntries) {
-    return;
-  }
-
+  // First, remove all expired entries
+  const expiredKeys: string[] = [];
   store.forEach((entry, key) => {
-    if (store.size <= maxEntries) {
-      return;
-    }
     if (now >= entry.resetAt) {
-      store.delete(key);
+      expiredKeys.push(key);
     }
   });
+  expiredKeys.forEach(key => store.delete(key));
+
+  // If still over limit, remove oldest entries
+  if (store.size > maxEntries) {
+    const entries = Array.from(store.entries())
+      .sort((a, b) => a[1].resetAt - b[1].resetAt);
+    const toRemove = entries.slice(0, store.size - maxEntries);
+    toRemove.forEach(([key]) => store.delete(key));
+  }
 };
 
 export const getClientIp = (request: Request) => {
