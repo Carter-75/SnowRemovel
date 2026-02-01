@@ -101,6 +101,7 @@ export default function Home() {
     const [downloadedTerms, setDownloadedTerms] = useState(false);
     const [emergencyWaiver, setEmergencyWaiver] = useState(false);
     const [paymentStatus, setPaymentStatus] = useState("");
+    const [isPaying, setIsPaying] = useState(false);
     const heroCardRef = useRef<HTMLDivElement | null>(null);
     const heroImageRef = useRef<HTMLDivElement | null>(null);
     const snowSceneRef = useRef<HTMLDivElement | null>(null);
@@ -304,6 +305,7 @@ export default function Home() {
             return;
         }
         try {
+            setIsPaying(true);
             const urgentService = isUrgentRequest();
             const response = await fetch("/api/stripe/checkout", {
                 method: "POST",
@@ -326,6 +328,8 @@ export default function Home() {
         } catch (err) {
             const message = err instanceof Error ? err.message : "Unable to start payment.";
             setPaymentStatus(message);
+        } finally {
+            setIsPaying(false);
         }
     };
 
@@ -855,9 +859,17 @@ export default function Home() {
                                     className={styles.secondaryButton}
                                     type="button"
                                     onClick={handlePayment}
-                                    disabled={!canSubmit}
+                                    disabled={!canSubmit || isPaying}
+                                    aria-busy={isPaying}
                                 >
-                                    Pay now (full amount)
+                                    {isPaying ? (
+                                        <span className={styles.loadingButtonContent}>
+                                            <span className={styles.spinner} aria-hidden="true" />
+                                            Processing payment...
+                                        </span>
+                                    ) : (
+                                        "Pay now (full amount)"
+                                    )}
                                 </button>
                                 {!canSubmit ? (
                                     <div className={styles.estimateError}>Name, address, and required agreements are needed.</div>

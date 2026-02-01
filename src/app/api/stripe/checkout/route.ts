@@ -138,14 +138,19 @@ export async function POST(request: Request) {
         price_data: {
           currency: "usd",
           product_data: {
-            name: "Snow removal service",
-            description: `Snow removal for ${address}`,
+            name: "Shovler Inc. - Snow removal service",
+            description: `Shovler Inc. snow removal for ${address}`,
           },
           unit_amount: amountCents,
         },
         quantity: 1,
       },
     ],
+    custom_text: {
+      submit: {
+        message: "Shovler Inc. will process your payment securely with Stripe.",
+      },
+    },
     success_url: `${BASE_URL}/?payment=success`,
     cancel_url: `${BASE_URL}/?payment=cancel`,
     metadata: {
