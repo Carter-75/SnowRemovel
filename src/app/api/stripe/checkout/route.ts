@@ -5,6 +5,7 @@ import { computeEstimate } from "@/lib/estimate";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { sanitizeName, sanitizeEmail, sanitizeText, redactAddress } from "@/lib/input-sanitize";
 import { CHECKOUT_RATE_LIMIT, CHECKOUT_RATE_WINDOW_MS, DISCOUNT_WINDOW_SECONDS, DISCOUNT_FIRST_PHASE_SECONDS, DISCOUNT_MAX_PERCENT, DISCOUNT_MIN_PERCENT } from "@/lib/constants";
+import { isHoneypotFilled } from "@/lib/honeypot";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "";
@@ -95,7 +96,13 @@ export async function POST(request: Request) {
     urgentService?: boolean;
     timezoneOffsetMinutes?: number;
     estimateTimestamp?: number;
+    honeypot?: string;
   };
+
+  // Honeypot validation - reject if filled
+  if (isHoneypotFilled(body.honeypot)) {
+    return NextResponse.json({ error: "Invalid submission." }, { status: 400 });
+  }
 
   const name = sanitizeName(body.name ?? '', 120);
   const address = sanitizeText(body.address ?? '', 200);
@@ -137,8 +144,8 @@ export async function POST(request: Request) {
         price_data: {
           currency: "usd",
           product_data: {
-            name: "Shovler Inc. - Snow removal service",
-            description: `Shovler Inc. snow removal for ${address}`,
+            name: "Carter Moyer Snow Removal",
+            description: `Snow removal service for ${address}`,
           },
           unit_amount: amountCents,
         },
@@ -147,13 +154,13 @@ export async function POST(request: Request) {
     ],
     custom_text: {
       submit: {
-        message: "Shovler Inc. will process your payment securely with Stripe.",
+        message: "Carter Moyer will process your payment securely with Stripe.",
       },
     },
     success_url: `${BASE_URL}/?payment=success`,
     cancel_url: `${BASE_URL}/?payment=cancel`,
     metadata: {
-      name,
+      customerName: name,
       address: redactAddress(address), // Store redacted version in Stripe
       fullAddressHash: await hashAddressForLookup(address), // Store hash for lookup
       timeframe,

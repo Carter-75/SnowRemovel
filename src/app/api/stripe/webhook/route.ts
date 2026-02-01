@@ -13,6 +13,7 @@ import { loadFinancialState, persistFinancialState } from "@/lib/financial-store
 import { logger } from "@/lib/logger";
 import { BUSINESS_ADDRESS, BUSINESS_EMAIL, BUSINESS_PHONE } from "@/lib/constants";
 import { getCustomerPaymentEmail, getProviderNotificationEmail } from "@/lib/email-templates";
+import { validateEnvironment } from "@/lib/env-validation";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
@@ -53,6 +54,16 @@ const sendResendEmail = async (payload: {
 };
 
 export async function POST(request: Request) {
+  // Validate environment on first webhook call
+  try {
+    validateEnvironment();
+  } catch (error) {
+    logger.error("Environment validation failed", { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+    return NextResponse.json({ error: "Service configuration error." }, { status: 500 });
+  }
+
   if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET) {
     logger.error("Stripe webhook endpoint called but credentials not configured");
     return NextResponse.json({ error: "Stripe is not configured." }, { status: 500 });
@@ -216,7 +227,7 @@ export async function POST(request: Request) {
       const customerHtml = getCustomerPaymentEmail({
         customerName: metadata.customerName ?? "Customer",
         serviceDatetime: timeframe || "TBD",
-        serviceAddress: metadata.redactedAddress ?? address,
+        serviceAddress: metadata.address || metadata.redactedAddress || "Your service address",
         finalPrice: gross,
         urgentService,
         emergencyWaiver: metadata.emergencyWaiver === "true",

@@ -4,6 +4,7 @@ import { readFile } from "fs/promises";
 
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { BUSINESS_EMAIL, BUSINESS_PHONE } from "@/lib/constants";
+import { isHoneypotFilled } from "@/lib/honeypot";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const RESEND_FROM = process.env.RESEND_FROM ?? "";
@@ -89,7 +90,13 @@ export async function POST(request: Request) {
     downloadedTerms?: boolean;
     emergencyWaiver?: boolean;
     urgentService?: boolean;
+    honeypot?: string;
   };
+
+  // Honeypot validation - reject if filled
+  if (isHoneypotFilled(body.honeypot)) {
+    return NextResponse.json({ error: "Invalid submission." }, { status: 400 });
+  }
 
   const name = normalizeText(body.name, 120);
   const email = normalizeText(body.email, 254);

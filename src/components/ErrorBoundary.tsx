@@ -23,10 +23,14 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('ErrorBoundary caught an error:', error, errorInfo);
+    }
     
     // Optional: Send to error tracking service in production
     if (process.env.NODE_ENV === 'production') {
+      // TODO: Send to error tracking service (Sentry, LogRocket, etc.)
       // Example: sendToErrorTracking(error, errorInfo);
     }
   }
