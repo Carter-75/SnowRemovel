@@ -7,7 +7,7 @@ const allowedFrameAncestors = [
   "https://www.carter-portfolio.fyi",
   "https://carter-portfolio.vercel.app",
   "https://*.vercel.app",
-  "http://localhost:3000",
+  ...(process.env.NODE_ENV === "development" ? ["http://localhost:3000"] : []),
 ];
 
 const createNonce = () => {
@@ -50,9 +50,21 @@ const buildCsp = (nonce: string) => {
 
 export function proxy(_request: NextRequest) {
   const nonce = createNonce();
+  const isProduction = process.env.NODE_ENV === "production";
   const response = NextResponse.next();
+  
+  // Set security headers
   response.headers.set("x-nonce", nonce);
   response.headers.set("Content-Security-Policy", buildCsp(nonce));
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), interest-cohort=()");
+  
+  if (isProduction) {
+    response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  }
+  
   return response;
 }
 

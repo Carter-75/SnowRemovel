@@ -1,19 +1,4 @@
 {
     "framework": "nextjs",
-    "outputDirectory": ".next",
-    "headers": [
-        {
-            "source": "/(.*)",
-            "headers": [
-                {
-                    "key": "X-Frame-Options",
-                    "value": "SAMEORIGIN"
-                },
-                {
-                    "key": "Content-Security-Policy",
-                    "value": "frame-ancestors 'self' https://carter-portfolio.fyi https://carter-portfolio.vercel.app https://*.vercel.app http://localhost:3000"
-                }
-            ]
-        }
-    ]
+    "outputDirectory": ".next"
 }

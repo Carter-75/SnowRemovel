@@ -9,6 +9,7 @@ import * as Matter from "matter-js";
 import styles from "./page.module.css";
 import { DISCOUNT_WINDOW_SECONDS, DISCOUNT_FIRST_PHASE_SECONDS, DISCOUNT_MAX_PERCENT, DISCOUNT_MIN_PERCENT, URGENCY_THRESHOLD_DAYS, MIN_DATETIME_STEP_MINUTES, MAX_SCHEDULE_AHEAD_MONTHS, BUSINESS_EMAIL, BUSINESS_PHONE } from "@/lib/constants";
 import { HoneypotField } from "@/lib/honeypot";
+import type { EstimateResponse, EstimateErrorResponse, CheckoutResponse, CheckoutErrorResponse } from "@/types/api";
 
 const SERVICES = [
     {
@@ -79,22 +80,7 @@ export default function Home() {
     const [zipAddress, setZipAddress] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
-    const [estimate, setEstimate] = useState<null | {
-        sqft: number;
-        price: number;
-        basePrice: number;
-        upchargeAmount: number;
-        upchargeApplied: boolean;
-        rate: number;
-        jobType: string;
-        driveFee: number;
-        driveMiles: number;
-        driveMinutes: number;
-        roundTripMiles: number;
-        roundTripMinutes: number;
-        timestamp: number;
-        discountExpired?: boolean;
-    }>(null);
+    const [estimate, setEstimate] = useState<EstimateResponse | null>(null);
     const [discountSecondsLeft, setDiscountSecondsLeft] = useState(0);
     const [requestName, setRequestName] = useState("");
     const [requestEmail, setRequestEmail] = useState("");
@@ -223,27 +209,14 @@ export default function Home() {
                     consentToStorage: consentToDataStorage 
                 }),
             });
-            const data = await response.json();
+            const data = await response.json() as EstimateResponse | EstimateErrorResponse;
             if (!response.ok) {
-                throw new Error(data?.error ?? "Unable to estimate price.");
+                throw new Error('error' in data ? data.error : "Unable to estimate price.");
             }
 
-            setEstimate({
-                sqft: data.sqft,
-                price: data.price,
-                basePrice: data.basePrice,
-                upchargeAmount: data.upchargeAmount,
-                upchargeApplied: data.upchargeApplied,
-                rate: data.rate,
-                jobType: data.jobType,
-                driveFee: data.driveFee,
-                driveMiles: data.driveMiles,
-                driveMinutes: data.driveMinutes,
-                roundTripMiles: data.roundTripMiles,
-                roundTripMinutes: data.roundTripMinutes,
-                timestamp: data.timestamp,
-                discountExpired: data.discountExpired,
-            });
+            if ('sqft' in data) {
+                setEstimate(data);
+            }
         } catch (err) {
             const message = err instanceof Error ? err.message : "Unable to estimate price.";
             setError(message);
@@ -356,9 +329,9 @@ export default function Home() {
                     honeypot,
                 }),
             });
-            const data = await response.json();
-            if (!response.ok || !data.url) {
-                throw new Error(data?.error ?? "Unable to start payment.");
+            const data = await response.json() as CheckoutResponse | CheckoutErrorResponse;
+            if (!response.ok || !('url' in data)) {
+                throw new Error('error' in data ? data.error : "Unable to start payment.");
             }
             window.location.href = data.url;
         } catch (err) {
@@ -736,10 +709,16 @@ export default function Home() {
                         
                         <HoneypotField value={honeypot} onChange={setHoneypot} />
                         
-                        <button className={styles.primaryButton} type="button" onClick={handleEstimate} disabled={isLoading || !consentToDataStorage}>
+                        <button className={styles.primaryButton} type="button" onClick={handleEstimate} disabled={isLoading || !consentToDataStorage} aria-busy={isLoading}>
                             {isLoading ? "Estimating..." : "Estimate price"}
                         </button>
-                        {error ? <div className={styles.estimateError}>{error}</div> : null}
+                        
+                        {/* ARIA live region for dynamic updates */}
+                        <div role="status" aria-live="polite" aria-atomic="true">
+                            {isLoading ? <div className="sr-only">Loading estimate, please wait...</div> : null}
+                            {error ? <div className={styles.estimateError} role="alert">{error}</div> : null}
+                        </div>
+                        
                         {estimate ? (
                             <div className={styles.estimateResult}>
                                 <div>
