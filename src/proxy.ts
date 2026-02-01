@@ -27,14 +27,14 @@ const buildCsp = (nonce: string) => {
     "'self'",
     `'nonce-${nonce}'`,
     "https://cdnjs.cloudflare.com",
+    "https://vercel.live", // Vercel Live preview/feedback tools (always needed)
   ];
   
-  const connectSrc = ["'self'"];
-  
-  if (!isProduction) {
-    scriptSrc.push("https://vercel.live");
-    connectSrc.push("https://vercel.live", "wss://ws-us3.pusher.com");
-  }
+  const connectSrc = [
+    "'self'",
+    "https://vercel.live",
+    "wss://ws-us3.pusher.com", // Vercel Live WebSocket connections
+  ];
   
   return [
     "default-src 'self'",
