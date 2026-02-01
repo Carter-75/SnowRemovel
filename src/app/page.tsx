@@ -69,53 +69,6 @@ const FAQS = [
     },
 ];
 
-// Address discount tracking
-interface AddressDiscountRecord {
-    timestamp: number;
-    expired: boolean;
-}
-
-const getAddressDiscounts = (): Record<string, AddressDiscountRecord> => {
-    if (typeof window === "undefined") return {};
-    try {
-        const stored = localStorage.getItem("address_discounts");
-        return stored ? JSON.parse(stored) : {};
-    } catch {
-        return {};
-    }
-};
-
-const setAddressDiscount = (address: string, timestamp: number) => {
-    if (typeof window === "undefined") return;
-    try {
-        const discounts = getAddressDiscounts();
-        discounts[address.toLowerCase().trim()] = { timestamp, expired: false };
-        localStorage.setItem("address_discounts", JSON.stringify(discounts));
-    } catch {
-        // Ignore storage errors
-    }
-};
-
-const markAddressExpired = (address: string) => {
-    if (typeof window === "undefined") return;
-    try {
-        const discounts = getAddressDiscounts();
-        const key = address.toLowerCase().trim();
-        if (discounts[key]) {
-            discounts[key].expired = true;
-            localStorage.setItem("address_discounts", JSON.stringify(discounts));
-        }
-    } catch {
-        // Ignore storage errors
-    }
-};
-
-const getAddressDiscountInfo = (address: string): { timestamp: number; expired: boolean } | null => {
-    const discounts = getAddressDiscounts();
-    const key = address.toLowerCase().trim();
-    return discounts[key] || null;
-};
-
 export default function Home() {
     const [streetAddress, setStreetAddress] = useState("");
     const [unitAddress, setUnitAddress] = useState("");
@@ -138,6 +91,7 @@ export default function Home() {
         roundTripMiles: number;
         roundTripMinutes: number;
         timestamp: number;
+        discountExpired?: boolean;
     }>(null);
     const [discountSecondsLeft, setDiscountSecondsLeft] = useState(0);
     const [requestName, setRequestName] = useState("");
@@ -234,9 +188,6 @@ export default function Home() {
             return;
         }
 
-        // Check if this address already has an expired discount
-        const existingDiscount = getAddressDiscountInfo(fullAddress);
-        
         const urgentService = isUrgentRequest();
         setIsLoading(true);
         setError("");
@@ -252,15 +203,6 @@ export default function Home() {
                 throw new Error(data?.error ?? "Unable to estimate price.");
             }
 
-            // Use stored timestamp if address was already submitted, otherwise use new timestamp
-            let timestampToUse = data.timestamp;
-            if (existingDiscount) {
-                timestampToUse = existingDiscount.timestamp;
-            } else {
-                // First time for this address - store it
-                setAddressDiscount(fullAddress, data.timestamp);
-            }
-
             setEstimate({
                 sqft: data.sqft,
                 price: data.price,
@@ -274,7 +216,8 @@ export default function Home() {
                 driveMinutes: data.driveMinutes,
                 roundTripMiles: data.roundTripMiles,
                 roundTripMinutes: data.roundTripMinutes,
-                timestamp: timestampToUse,
+                timestamp: data.timestamp,
+                discountExpired: data.discountExpired,
             });
         } catch (err) {
             const message = err instanceof Error ? err.message : "Unable to estimate price.";
@@ -290,11 +233,8 @@ export default function Home() {
             return;
         }
 
-        const fullAddress = buildFullAddress();
-        const addressInfo = fullAddress ? getAddressDiscountInfo(fullAddress) : null;
-        
-        // If address was marked expired, no discount
-        if (addressInfo?.expired) {
+        // If discount was marked as expired, no countdown
+        if (estimate.discountExpired) {
             setDiscountSecondsLeft(0);
             return;
         }
@@ -303,17 +243,12 @@ export default function Home() {
             const elapsed = Math.floor((Date.now() - estimate.timestamp) / 1000);
             const remaining = Math.max(0, 600 - elapsed);
             setDiscountSecondsLeft(remaining);
-
-            // Mark address as expired when countdown hits 0
-            if (remaining === 0 && fullAddress && addressInfo && !addressInfo.expired) {
-                markAddressExpired(fullAddress);
-            }
         };
 
         updateCountdown();
-        const interval = window.setInterval(updateCountdown, 1000);
+        const interval = window.setInterval(updateCountdown, 5000);
         return () => window.clearInterval(interval);
-    }, [estimate, streetAddress, unitAddress, cityAddress, stateAddress, zipAddress]);
+    }, [estimate]);
 
     const discountPercent = useMemo(() => {
         if (!estimate || discountSecondsLeft <= 0) {
